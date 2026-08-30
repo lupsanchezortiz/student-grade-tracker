@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
 import {
   assertDistrict,
@@ -604,11 +605,8 @@ export async function myCourses() {
 export async function getCourse(courseId: string) {
   const user = await requireUser();
   const state = loadState();
-  if (!canViewCourse(user, state, courseId)) {
-    throw new Error("You cannot open this course.");
-  }
   const course = hydrateCourse(state, courseId);
-  if (!course) throw new Error("Course not found.");
+  if (!course || !canViewCourse(user, state, courseId)) notFound();
   return course;
 }
 
@@ -694,11 +692,8 @@ export async function setCourseTeachers(
 export async function getGradebook(courseId: string, termId?: string) {
   const user = await requireUser();
   const state = loadState();
-  if (!canViewCourse(user, state, courseId)) {
-    throw new Error("You cannot open this gradebook.");
-  }
   const course = hydrateCourse(state, courseId);
-  if (!course) throw new Error("Course not found.");
+  if (!course || !canViewCourse(user, state, courseId)) notFound();
   const terms = state.terms
     .filter((t) => t.academicYearId === course.academicYearId)
     .sort((a, b) => a.sortOrder - b.sortOrder);
