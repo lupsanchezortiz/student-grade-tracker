@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { normalizeLayout } from "@/lib/data/layout";
 import { createSeedState } from "@/lib/data/seed";
 import type { StoreState } from "@/lib/types";
 
@@ -17,7 +18,7 @@ export function loadState(): StoreState {
   if (memory) return memory;
   try {
     if (existsSync(DATA_FILE)) {
-      memory = JSON.parse(readFileSync(DATA_FILE, "utf8")) as StoreState;
+      memory = migrateState(JSON.parse(readFileSync(DATA_FILE, "utf8")) as StoreState);
       return memory;
     }
   } catch {
@@ -50,4 +51,16 @@ export function resetState(): StoreState {
 
 export function snapshot(): StoreState {
   return clone(loadState());
+}
+
+function migrateState(state: StoreState): StoreState {
+  for (const template of state.templates) {
+    template.layout = normalizeLayout(template.layout);
+  }
+  for (const item of state.items) {
+    if (item.itemType === "comment" && !item.maxChars) {
+      item.maxChars = 500;
+    }
+  }
+  return state;
 }

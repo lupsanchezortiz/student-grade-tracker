@@ -75,6 +75,7 @@ export type ReportCardTemplate = {
   gradeScaleId: string;
   name: string;
   status: TemplateStatus;
+  layout: TemplateLayout;
 };
 
 export type TemplateGradeLevel = {
@@ -97,6 +98,27 @@ export type TemplateItem = {
   titleEn: string;
   titleEs: string;
   itemType: ItemType;
+  /** Character limit for comment items. Ignored for marks. */
+  maxChars?: number;
+};
+
+export type TemplateLayout = {
+  headerFields: {
+    student: boolean;
+    id: boolean;
+    grade: boolean;
+    school: boolean;
+    term: boolean;
+    year: boolean;
+    course: boolean;
+  };
+  commentsPlacement: "inline" | "bottom";
+  table: {
+    showMarkCode: boolean;
+    showMarkLabel: boolean;
+    density: "compact" | "spacious";
+    markColumnWidth: "narrow" | "wide";
+  };
 };
 
 export type Student = {

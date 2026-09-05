@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { createCourseAction } from "@/lib/actions/mutations";
+import { getSessionUser } from "@/lib/auth/session";
 import { getSite, listCourses, listGradeLevels, listYears } from "@/lib/data/repo";
 
 export default async function CoursesPage({
@@ -20,12 +22,16 @@ export default async function CoursesPage({
   params: Promise<{ siteId: string }>;
 }) {
   const { siteId } = await params;
-  const [site, courses, years, levels] = await Promise.all([
+  const [site, courses, years, levels, user] = await Promise.all([
     getSite(siteId),
     listCourses(siteId),
     listYears(),
     listGradeLevels(),
+    getSessionUser(),
   ]);
+  const canImport =
+    user?.isSystemAdmin ||
+    user?.memberships.some((m) => m.siteId === siteId && m.role === "site_admin");
 
   return (
     <div>
@@ -34,7 +40,9 @@ export default async function CoursesPage({
         title="Courses"
         description="A course locks to the published district report card for that grade and year. That card is the gradebook."
         actions={
-          years.length ? (
+          <>
+          {canImport ? <CsvImportDialog kind="courses" siteId={siteId} /> : null}
+          {years.length ? (
             <Dialog>
               <DialogTrigger className="inline-flex h-8 items-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground">
                 New course
@@ -84,7 +92,8 @@ export default async function CoursesPage({
                 </form>
               </DialogContent>
             </Dialog>
-          ) : null
+          ) : null}
+          </>
         }
       />
       {courses.length === 0 ? (

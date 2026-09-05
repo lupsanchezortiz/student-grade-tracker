@@ -9,6 +9,8 @@ import {
   canViewCourse,
 } from "@/lib/data/access";
 import { findTemplateForGrade, hydrateCourse, hydrateTemplate } from "@/lib/data/hydrate";
+import { defaultLayout, normalizeLayout } from "@/lib/data/layout";
+import type { TemplateLayout } from "@/lib/types";
 import { loadState, mutateState, resetState } from "@/lib/data/store";
 import { buildTerms } from "@/lib/data/terms";
 import type {
@@ -261,6 +263,7 @@ export async function createTemplate(input: {
       academicYearId: input.academicYearId,
       gradeScaleId: input.gradeScaleId,
       status: "draft" as const,
+      layout: defaultLayout(),
     };
     state.templates.push(template);
     for (const gradeLevelId of input.gradeLevelIds) {
@@ -390,7 +393,7 @@ export async function moveSection(sectionId: string, direction: "up" | "down") {
 
 export async function addItem(
   sectionId: string,
-  input: { titleEn: string; titleEs: string; itemType: ItemType },
+  input: { titleEn: string; titleEs: string; itemType: ItemType; maxChars?: number },
 ) {
   const user = await requireUser();
   assertDistrict(user);
@@ -406,6 +409,7 @@ export async function addItem(
       titleEn: input.titleEn.trim(),
       titleEs: input.titleEs.trim(),
       itemType: input.itemType,
+      maxChars: input.itemType === "comment" ? input.maxChars || 500 : undefined,
     };
     state.items.push(item);
     return item;
@@ -414,7 +418,7 @@ export async function addItem(
 
 export async function updateItem(
   itemId: string,
-  input: { titleEn: string; titleEs: string; itemType: ItemType },
+  input: { titleEn: string; titleEs: string; itemType: ItemType; maxChars?: number },
 ) {
   const user = await requireUser();
   assertDistrict(user);
@@ -424,7 +428,19 @@ export async function updateItem(
     item.titleEn = input.titleEn.trim();
     item.titleEs = input.titleEs.trim();
     item.itemType = input.itemType;
+    item.maxChars = input.itemType === "comment" ? input.maxChars || 500 : undefined;
     return item;
+  });
+}
+
+export async function updateTemplateLayout(templateId: string, layout: TemplateLayout) {
+  const user = await requireUser();
+  assertDistrict(user);
+  return mutateState((state) => {
+    const template = state.templates.find((t) => t.id === templateId);
+    if (!template) throw new Error("Template not found.");
+    template.layout = normalizeLayout(layout);
+    return hydrateTemplate(state, templateId)!;
   });
 }
 
@@ -737,6 +753,11 @@ export async function upsertGrade(input: {
     if (!canEditCourse(user, state, enrollment.courseId)) {
       throw new Error("You cannot change grades in this course.");
     }
+    const item = state.items.find((i) => i.id === input.templateItemId);
+    const comment =
+      item?.itemType === "comment" && item.maxChars
+        ? input.comment.slice(0, item.maxChars)
+        : input.comment;
     const existing = state.grades.find(
       (g) =>
         g.enrollmentId === input.enrollmentId &&
@@ -745,7 +766,7 @@ export async function upsertGrade(input: {
     );
     if (existing) {
       existing.markId = input.markId;
-      existing.comment = input.comment;
+      existing.comment = comment;
       return existing;
     }
     const grade: Grade = {
@@ -754,7 +775,7 @@ export async function upsertGrade(input: {
       termId: input.termId,
       templateItemId: input.templateItemId,
       markId: input.markId,
-      comment: input.comment,
+      comment,
     };
     state.grades.push(grade);
     return grade;

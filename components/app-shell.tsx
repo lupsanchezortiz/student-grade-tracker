@@ -7,6 +7,7 @@ import {
   Building2,
   CalendarRange,
   ClipboardList,
+  FileUp,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -42,6 +43,7 @@ function districtNav(): NavItem[] {
     { href: "/district/years", label: "School years", icon: CalendarRange },
     { href: "/district/scales", label: "Grade scales", icon: Scale },
     { href: "/district/templates", label: "Report cards", icon: ClipboardList },
+    { href: "/district/import", label: "CSV import", icon: FileUp },
   ];
 }
 

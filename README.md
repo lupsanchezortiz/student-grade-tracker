@@ -6,8 +6,8 @@ A district student information system: the **district office** owns the school y
 
 | Role | What they do |
 | --- | --- |
-| System admin | Schools, school years (semester / trimester / quarter), grade scales, report-card templates (EN/ES), assign templates to grade levels |
-| Site admin | Students, staff, courses, enrollment, teacher permissions, oversight of site gradebooks |
+| System admin | Schools, school years, grade scales, report-card templates (EN/ES), CSV import for any school, template line-item import |
+| Site admin | Students, staff, courses (including CSV for this school only), enrollment, teacher permissions |
 | Teacher | Grade assigned courses, print report cards |
 
 ## Run locally
@@ -45,3 +45,16 @@ Without those env vars, demo mode stays on so you can use the product immediatel
 4. The site creates a course for that grade and year — the template becomes the gradebook columns.
 5. The site enrolls students and grants teachers grade/print permission.
 6. Teachers enter marks; PDFs render in English or Spanish from those marks.
+
+## CSV import
+
+District **CSV import** (system admin) and site Students / Staff / Courses pages (site admin) accept uploads. Download the sample file first. Matching keys update instead of duplicating.
+
+- Students: `site_code,student_number,first_name,last_name,preferred_name,grade,home_language`
+- Staff: `site_code,full_name,email,role`
+- Courses: `site_code,year,grade,name,teacher_email`
+- Template items (on the template): `section_en,section_es,title_en,title_es,type,scale,max_chars`
+
+A `scale` of `1-4` creates a 1 (lowest) through 4 (highest) scale. Comment rows such as `ILP Goal` can set `max_chars`.
+
+Report-card templates include a live preview: show/hide header fields, comments inline or at the bottom, and mark table look. Saved layout is used on the PDF.

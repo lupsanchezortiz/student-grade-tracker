@@ -18,7 +18,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { createStudentAction } from "@/lib/actions/mutations";
+import { getSessionUser } from "@/lib/auth/session";
 import { getSite, listGradeLevels, listStudents } from "@/lib/data/repo";
 import { gradeLabel, studentName } from "@/lib/format";
 
@@ -28,11 +30,15 @@ export default async function StudentsPage({
   params: Promise<{ siteId: string }>;
 }) {
   const { siteId } = await params;
-  const [site, students, levels] = await Promise.all([
+  const [site, students, levels, user] = await Promise.all([
     getSite(siteId),
     listStudents(siteId),
     listGradeLevels(),
+    getSessionUser(),
   ]);
+  const canImport =
+    user?.isSystemAdmin ||
+    user?.memberships.some((m) => m.siteId === siteId && m.role === "site_admin");
 
   return (
     <div>
@@ -41,6 +47,8 @@ export default async function StudentsPage({
         title="Students"
         description="Roster is site-specific. Enroll students into a course to place them on that gradebook."
         actions={
+          <>
+          {canImport ? <CsvImportDialog kind="students" siteId={siteId} /> : null}
           <Dialog>
             <DialogTrigger className="inline-flex h-8 items-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground">
               Add student
@@ -102,6 +110,7 @@ export default async function StudentsPage({
               </form>
             </DialogContent>
           </Dialog>
+          </>
         }
       />
       {students.length === 0 ? (

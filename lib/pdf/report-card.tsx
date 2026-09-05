@@ -1,4 +1,5 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { normalizeLayout } from "@/lib/data/layout";
 import type {
   CourseDetail,
   Grade,
@@ -167,6 +168,33 @@ function ReportCardPage({ card }: { card: ReportCardInput }) {
   const byItem = new Map(grades.map((g) => [g.templateItemId, g]));
   const termName = locale === "es" ? term.nameEs : term.nameEn;
   const gradeName = locale === "es" ? course.gradeLevel.nameEs : course.gradeLevel.nameEn;
+  const layout = normalizeLayout(course.template.layout);
+  const headerCells = [
+    layout.headerFields.student
+      ? { label: t(locale, "student"), value: `${student.firstName} ${student.lastName}` }
+      : null,
+    layout.headerFields.id ? { label: t(locale, "id"), value: student.studentNumber } : null,
+    layout.headerFields.grade ? { label: t(locale, "grade"), value: gradeName } : null,
+    layout.headerFields.school ? { label: t(locale, "school"), value: course.site.name } : null,
+  ].filter((c): c is { label: string; value: string } => Boolean(c));
+  const markWidth = layout.table.markColumnWidth === "wide" ? 150 : 90;
+  const rowPad = layout.table.density === "spacious" ? 8 : 5;
+  const comments = course.template.sections.flatMap((s) =>
+    s.items.filter((i) => i.itemType === "comment"),
+  );
+
+  function markText(itemId: string) {
+    const grade = byItem.get(itemId);
+    const mark = grade?.markId ? marks.get(grade.markId) : null;
+    if (!mark) return "—";
+    const code = layout.table.showMarkCode ? mark.code : "";
+    const label = layout.table.showMarkLabel
+      ? locale === "es"
+        ? mark.labelEs
+        : mark.labelEn
+      : "";
+    return [code, label].filter(Boolean).join("  ") || "—";
+  }
 
   return (
     <Page size="LETTER" style={styles.page}>
@@ -175,67 +203,98 @@ function ReportCardPage({ card }: { card: ReportCardInput }) {
       <Text style={styles.subtitle}>
         {locale === "es" ? course.template.name : course.template.name}
       </Text>
-      <View style={styles.metaRow}>
-        <View style={styles.metaCell}>
-          <Text style={styles.metaLabel}>{t(locale, "student")}</Text>
-          <Text style={styles.metaValue}>
-            {student.firstName} {student.lastName}
-          </Text>
+      {headerCells.length > 0 ? (
+        <View style={styles.metaRow}>
+          {headerCells.map((cell, i) => (
+            <View
+              key={cell.label}
+              style={[
+                styles.metaCell,
+                i === headerCells.length - 1 ? { borderRightWidth: 0 } : {},
+              ]}
+            >
+              <Text style={styles.metaLabel}>{cell.label}</Text>
+              <Text style={styles.metaValue}>{cell.value}</Text>
+            </View>
+          ))}
         </View>
-        <View style={styles.metaCell}>
-          <Text style={styles.metaLabel}>{t(locale, "id")}</Text>
-          <Text style={styles.metaValue}>{student.studentNumber}</Text>
-        </View>
-        <View style={styles.metaCell}>
-          <Text style={styles.metaLabel}>{t(locale, "grade")}</Text>
-          <Text style={styles.metaValue}>{gradeName}</Text>
-        </View>
-        <View style={[styles.metaCell, { borderRightWidth: 0 }]}>
-          <Text style={styles.metaLabel}>{t(locale, "school")}</Text>
-          <Text style={styles.metaValue}>{course.site.name}</Text>
-        </View>
-      </View>
+      ) : null}
       <View style={{ flexDirection: "row", marginBottom: 8, gap: 16 }}>
-        <Text>
-          {t(locale, "term")}: {termName}
-        </Text>
-        <Text>
-          {t(locale, "year")}: {course.year.name}
-        </Text>
-        <Text>{course.name}</Text>
+        {layout.headerFields.term ? (
+          <Text>
+            {t(locale, "term")}: {termName}
+          </Text>
+        ) : null}
+        {layout.headerFields.year ? (
+          <Text>
+            {t(locale, "year")}: {course.year.name}
+          </Text>
+        ) : null}
+        {layout.headerFields.course ? <Text>{course.name}</Text> : null}
       </View>
 
-      {course.template.sections.map((section) => (
-        <View key={section.id} wrap={false}>
-          <Text style={styles.sectionTitle}>
-            {locale === "es" ? section.titleEs : section.titleEn}
-          </Text>
-          {section.items.map((item) => {
+      {course.template.sections.map((section) => {
+        const markItems = section.items.filter((i) => i.itemType === "mark");
+        const commentItems = section.items.filter((i) => i.itemType === "comment");
+        const showComments =
+          layout.commentsPlacement === "inline" && commentItems.length > 0;
+        if (markItems.length === 0 && !showComments) return null;
+        return (
+          <View key={section.id} wrap={false}>
+            <Text style={styles.sectionTitle}>
+              {locale === "es" ? section.titleEs : section.titleEn}
+            </Text>
+            {markItems.map((item) => (
+              <View
+                key={item.id}
+                style={[styles.itemRow, { paddingVertical: rowPad }]}
+              >
+                <Text style={styles.itemName}>
+                  {locale === "es" ? item.titleEs : item.titleEn}
+                </Text>
+                <Text style={[styles.itemMark, { width: markWidth }]}>
+                  {markText(item.id)}
+                </Text>
+              </View>
+            ))}
+            {showComments
+              ? commentItems.map((item) => {
+                  const grade = byItem.get(item.id);
+                  const text = grade?.comment || "—";
+                  return (
+                    <View key={item.id}>
+                      <Text style={styles.itemRow}>
+                        <Text style={styles.itemName}>
+                          {locale === "es" ? item.titleEs : item.titleEn}
+                        </Text>
+                      </Text>
+                      <Text style={styles.comment}>
+                        {item.maxChars ? text.slice(0, item.maxChars) : text}
+                      </Text>
+                    </View>
+                  );
+                })
+              : null}
+          </View>
+        );
+      })}
+
+      {layout.commentsPlacement === "bottom"
+        ? comments.map((item) => {
             const grade = byItem.get(item.id);
-            const mark = grade?.markId ? marks.get(grade.markId) : null;
-            const title = locale === "es" ? item.titleEs : item.titleEn;
-            if (item.itemType === "comment") {
-              return (
-                <View key={item.id}>
-                  <Text style={styles.itemRow}>
-                    <Text style={styles.itemName}>{title}</Text>
-                  </Text>
-                  <Text style={styles.comment}>{grade?.comment || "—"}</Text>
-                </View>
-              );
-            }
-            const markText = mark
-              ? `${mark.code}  ${locale === "es" ? mark.labelEs : mark.labelEn}`
-              : "—";
+            const text = grade?.comment || "—";
             return (
-              <View key={item.id} style={styles.itemRow}>
-                <Text style={styles.itemName}>{title}</Text>
-                <Text style={styles.itemMark}>{markText}</Text>
+              <View key={item.id}>
+                <Text style={styles.sectionTitle}>
+                  {locale === "es" ? item.titleEs : item.titleEn}
+                </Text>
+                <Text style={styles.comment}>
+                  {item.maxChars ? text.slice(0, item.maxChars) : text}
+                </Text>
               </View>
             );
-          })}
-        </View>
-      ))}
+          })
+        : null}
 
       <Text style={styles.legend}>
         {course.template.marks

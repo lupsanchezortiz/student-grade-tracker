@@ -179,9 +179,10 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                             <textarea
                               disabled={!canEdit}
                               defaultValue={comments[k] ?? ""}
+                              maxLength={item.maxChars ?? undefined}
                               onBlur={(e) => onCommentBlur(enrollment.id, item.id, e.target.value)}
                               className="min-h-10 w-44 resize-none rounded-md border-0 bg-transparent px-1.5 py-1 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-ring"
-                              placeholder="Note"
+                              placeholder={item.maxChars ? `Note (${item.maxChars} max)` : "Note"}
                             />
                           ) : (
                             <select
@@ -245,10 +246,12 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                                 <textarea
                                   disabled={!canEdit}
                                   defaultValue={comments[k] ?? ""}
+                                  maxLength={item.maxChars ?? undefined}
                                   onBlur={(e) =>
                                     onCommentBlur(enrollment.id, item.id, e.target.value)
                                   }
                                   className="min-h-16 w-full rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
+                                  placeholder={item.maxChars ? `${item.maxChars} characters max` : undefined}
                                 />
                               ) : (
                                 <select

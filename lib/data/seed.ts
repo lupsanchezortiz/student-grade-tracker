@@ -1,3 +1,4 @@
+import { defaultLayout } from "@/lib/data/layout";
 import { gradeLevelId, IDS } from "@/lib/ids";
 import type {
   AcademicYear,
@@ -206,6 +207,7 @@ const TEMPLATES: ReportCardTemplate[] = [
     gradeScaleId: IDS.scaleEsnu,
     name: "Elementary progress report",
     status: "published",
+    layout: defaultLayout(),
   },
 ];
 
@@ -220,7 +222,13 @@ type SectionSeed = {
   id: string;
   titleEn: string;
   titleEs: string;
-  items: { id: string; titleEn: string; titleEs: string; itemType: "mark" | "comment" }[];
+  items: {
+    id: string;
+    titleEn: string;
+    titleEs: string;
+    itemType: "mark" | "comment";
+    maxChars?: number;
+  }[];
 };
 
 const SECTION_SEEDS: SectionSeed[] = [
@@ -335,6 +343,7 @@ const SECTION_SEEDS: SectionSeed[] = [
         titleEn: "Comments",
         titleEs: "Comentarios",
         itemType: "comment",
+        maxChars: 500,
       },
     ],
   },
@@ -356,6 +365,7 @@ const ITEMS: TemplateItem[] = SECTION_SEEDS.flatMap((s) =>
     titleEn: item.titleEn,
     titleEs: item.titleEs,
     itemType: item.itemType,
+    maxChars: item.maxChars,
   })),
 );
 

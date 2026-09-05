@@ -25,10 +25,13 @@ import {
   updateStudent,
   updateTemplate,
   updateTerm,
+  updateTemplateLayout,
   updateYear,
   upsertGrade,
 } from "@/lib/data/repo";
-import type { ItemType, Locale, SiteRole, TermStructure } from "@/lib/types";
+import { runImport } from "@/lib/data/import";
+import type { ImportKind } from "@/lib/csv/samples";
+import type { ItemType, Locale, SiteRole, TemplateLayout, TermStructure } from "@/lib/types";
 
 function str(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
@@ -157,19 +160,23 @@ export async function moveSectionAction(formData: FormData) {
 }
 
 export async function addItemAction(formData: FormData) {
+  const maxChars = Number(str(formData, "maxChars")) || undefined;
   await addItem(str(formData, "sectionId"), {
     titleEn: str(formData, "titleEn"),
     titleEs: str(formData, "titleEs"),
     itemType: str(formData, "itemType") as ItemType,
+    maxChars,
   });
   revalidatePath("/district/templates");
 }
 
 export async function updateItemAction(formData: FormData) {
+  const maxChars = Number(str(formData, "maxChars")) || undefined;
   await updateItem(str(formData, "id"), {
     titleEn: str(formData, "titleEn"),
     titleEs: str(formData, "titleEs"),
     itemType: str(formData, "itemType") as ItemType,
+    maxChars,
   });
   revalidatePath("/district/templates");
 }
@@ -268,4 +275,23 @@ export async function saveGradeAction(input: {
 export async function resetDemoAction() {
   await resetDemoData();
   revalidatePath("/");
+}
+
+export async function importCsvAction(input: {
+  kind: ImportKind;
+  csv: string;
+  siteId?: string;
+  templateId?: string;
+}) {
+  const result = await runImport(input.kind, input.csv, {
+    siteId: input.siteId,
+    templateId: input.templateId,
+  });
+  revalidatePath("/");
+  return result;
+}
+
+export async function saveTemplateLayoutAction(templateId: string, layout: TemplateLayout) {
+  await updateTemplateLayout(templateId, layout);
+  revalidatePath(`/district/templates/${templateId}`);
 }

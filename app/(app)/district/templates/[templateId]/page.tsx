@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { PageHeader } from "@/components/page-header";
+import { ReportCardPreview } from "@/components/report-card/preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,16 +49,23 @@ export default async function TemplateDetailPage({
         title={template.name}
         description="Sections and line items become gradebook columns. English and Spanish labels print on the PDF."
         actions={
-          template.status === "draft" ? (
-            <form action={publishTemplateAction}>
-              <input type="hidden" name="id" value={template.id} />
-              <Button type="submit">Publish</Button>
-            </form>
-          ) : (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-sm text-primary">
-              Published
-            </span>
-          )
+          <div className="flex flex-wrap items-center gap-2">
+            <CsvImportDialog
+              kind="template_items"
+              templateId={template.id}
+              triggerLabel="Import items CSV"
+            />
+            {template.status === "draft" ? (
+              <form action={publishTemplateAction}>
+                <input type="hidden" name="id" value={template.id} />
+                <Button type="submit">Publish</Button>
+              </form>
+            ) : (
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-sm text-primary">
+                Published
+              </span>
+            )}
+          </div>
         }
       />
 
@@ -119,6 +128,14 @@ export default async function TemplateDetailPage({
           Save assignment
         </Button>
       </form>
+
+      <div className="mb-10">
+        <h2 className="font-heading mb-3 text-xl">Report card preview</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Change header fields and table look. Save to apply the same layout to printed PDFs.
+        </p>
+        <ReportCardPreview template={template} />
+      </div>
 
       <div className="space-y-6">
         {template.sections.map((section, index) => (
@@ -185,6 +202,18 @@ export default async function TemplateDetailPage({
                       <option value="mark">Mark (dropdown)</option>
                       <option value="comment">Comment</option>
                     </select>
+                    {item.itemType === "comment" ? (
+                      <Input
+                        name="maxChars"
+                        type="number"
+                        min={20}
+                        max={4000}
+                        defaultValue={item.maxChars ?? 500}
+                        placeholder="Max characters"
+                      />
+                    ) : (
+                      <input type="hidden" name="maxChars" value="" />
+                    )}
                     <Button type="submit" size="sm" variant="outline">
                       Save item
                     </Button>
@@ -220,7 +249,7 @@ export default async function TemplateDetailPage({
               ))}
             </ul>
 
-            <form action={addItemAction} className="mt-3 grid gap-2 sm:grid-cols-4">
+            <form action={addItemAction} className="mt-3 grid gap-2 sm:grid-cols-5">
               <input type="hidden" name="sectionId" value={section.id} />
               <Input name="titleEn" placeholder="New item (English)" required />
               <Input name="titleEs" placeholder="Nuevo criterio" required />
@@ -232,6 +261,7 @@ export default async function TemplateDetailPage({
                 <option value="mark">Mark</option>
                 <option value="comment">Comment</option>
               </select>
+              <Input name="maxChars" type="number" min={20} placeholder="Chars (comments)" />
               <Button type="submit" variant="secondary">
                 Add item
               </Button>

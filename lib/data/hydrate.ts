@@ -1,3 +1,4 @@
+import { normalizeLayout } from "@/lib/data/layout";
 import type {
   CourseDetail,
   StoreState,
@@ -27,6 +28,7 @@ export function hydrateTemplate(
     }));
   return {
     ...template,
+    layout: normalizeLayout(template.layout),
     year,
     scale,
     marks,
