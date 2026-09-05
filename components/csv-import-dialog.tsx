@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
 const TITLES: Record<ImportKind, string> = {
@@ -81,9 +80,9 @@ export function CsvImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger className="inline-flex h-8 items-center rounded-lg border border-border bg-background px-2.5 text-sm font-medium">
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
         {triggerLabel}
-      </DialogTrigger>
+      </Button>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{TITLES[kind]}</DialogTitle>

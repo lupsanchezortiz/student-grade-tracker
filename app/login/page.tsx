@@ -1,9 +1,5 @@
-import { loginAction } from "@/lib/actions/auth";
 import { isSupabaseConfigured } from "@/lib/auth/config";
-import { DEMO_ACCOUNTS } from "@/lib/data/seed";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
   searchParams,
@@ -38,57 +34,10 @@ export default async function LoginPage({
           <h2 className="font-heading text-2xl">Sign in</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {demo
-              ? "Demo mode is on. Use any account below with password demo."
+              ? "Demo mode is on. Click an account below, then continue. Password is demo."
               : "Use the email and password from your Northside account."}
           </p>
-          {error ? (
-            <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error === "missing"
-                ? "Enter your email and password."
-                : "That email or password is not recognized."}
-            </p>
-          ) : null}
-          <form action={loginAction} className="mt-6 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                required
-                defaultValue={demo ? DEMO_ACCOUNTS[0].email : ""}
-                autoComplete="username"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                required
-                defaultValue={demo ? "demo" : ""}
-                autoComplete="current-password"
-              />
-            </div>
-            <Button type="submit" className="w-full">
-              Continue
-            </Button>
-          </form>
-          {demo ? (
-            <ul className="mt-8 space-y-2">
-              {DEMO_ACCOUNTS.map((account) => (
-                <li
-                  key={account.email}
-                  className="rounded-lg border border-border bg-card px-3 py-2.5 text-sm"
-                >
-                  <p className="font-medium">{account.name}</p>
-                  <p className="text-muted-foreground">{account.role}</p>
-                  <p className="mt-1 font-mono text-xs">{account.email}</p>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          <LoginForm demo={demo} error={error} />
         </div>
       </div>
     </div>
