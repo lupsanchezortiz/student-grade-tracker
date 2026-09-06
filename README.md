@@ -31,7 +31,7 @@ With no Supabase env vars the app runs in **demo mode** (file-backed store in `.
 ## Supabase (optional)
 
 1. Create a project and copy URL + anon key into `.env.local` (see `.env.example`).
-2. Run [`supabase/migrations/20260830120000_init.sql`](supabase/migrations/20260830120000_init.sql) in the SQL editor.
+2. Run the SQL files in [`supabase/migrations`](supabase/migrations) in order (init, import/layout, then report-card styles).
 3. Run [`supabase/seed.sql`](supabase/seed.sql) for the district catalog.
 4. Create Auth users and set `profiles.is_system_admin` / `site_memberships` to match.
 
@@ -57,4 +57,4 @@ District **CSV import** (system admin) and site Students / Staff / Courses pages
 
 A `scale` of `1-4` creates a 1 (lowest) through 4 (highest) scale. Comment rows such as `ILP Goal` can set `max_chars`.
 
-Report-card templates include a live preview: show/hide header fields, comments inline or at the bottom, and mark table look. Saved layout is used on the PDF.
+Report-card templates include a **style panel**: custom title/footer copy (EN/ES), type size, page and table colors, criterion vs mark column width, and header field visibility. The live preview and the printed PDF use the same saved `layout`.

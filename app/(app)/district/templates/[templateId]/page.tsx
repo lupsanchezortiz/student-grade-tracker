@@ -43,7 +43,7 @@ export default async function TemplateDetailPage({
   ]);
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-6xl">
       <PageHeader
         eyebrow="Report card template"
         title={template.name}
@@ -132,7 +132,7 @@ export default async function TemplateDetailPage({
       <div className="mb-10">
         <h2 className="font-heading mb-3 text-xl">Report card preview</h2>
         <p className="mb-4 text-sm text-muted-foreground">
-          Change header fields and table look. Save to apply the same layout to printed PDFs.
+          Set copy, type, colors, and column widths. Save to apply the same layout to printed PDFs.
         </p>
         <ReportCardPreview template={template} />
       </div>

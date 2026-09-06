@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/auth/session";
 import { assertDistrict, assertSiteAdmin } from "@/lib/data/access";
 import { findTemplateForGrade } from "@/lib/data/hydrate";
 import { mutateState } from "@/lib/data/store";
-import { csvCell, parseCsv, type ImportError, type ImportResult } from "@/lib/csv/parse";
+import { csvCell, parseCsv, type ImportResult } from "@/lib/csv/parse";
 import type { ImportKind } from "@/lib/csv/samples";
 import type {
   Locale,

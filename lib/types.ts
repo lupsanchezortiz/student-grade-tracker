@@ -102,6 +102,8 @@ export type TemplateItem = {
   maxChars?: number;
 };
 
+export type TypeSize = "sm" | "md" | "lg";
+
 export type TemplateLayout = {
   headerFields: {
     student: boolean;
@@ -113,11 +115,32 @@ export type TemplateLayout = {
     course: boolean;
   };
   commentsPlacement: "inline" | "bottom";
+  copy: {
+    titleEn: string;
+    titleEs: string;
+    footerEn: string;
+    footerEs: string;
+  };
+  type: {
+    titleSize: TypeSize;
+    bodySize: TypeSize;
+  };
+  colors: {
+    page: string;
+    ink: string;
+    band: string;
+    border: string;
+    accent: string;
+  };
   table: {
     showMarkCode: boolean;
     showMarkLabel: boolean;
     density: "compact" | "spacious";
+    /** @deprecated Prefer criterionWidth. Kept for older saved layouts. */
     markColumnWidth: "narrow" | "wide";
+    /** Criterion column percent (50–85). Mark column is the remainder. */
+    criterionWidth: number;
+    showOuterBorder: boolean;
   };
 };
 

@@ -1,113 +1,161 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { normalizeLayout } from "@/lib/data/layout";
+import {
+  BODY_PT,
+  isDarkHex,
+  layoutFooter,
+  layoutTitle,
+  mixHex,
+  normalizeLayout,
+  PDF_CONTENT_WIDTH,
+  TITLE_PT,
+} from "@/lib/data/layout";
 import type {
   CourseDetail,
   Grade,
   Locale,
   Student,
+  TemplateLayout,
   Term,
 } from "@/lib/types";
 
-const styles = StyleSheet.create({
-  page: {
-    paddingTop: 36,
-    paddingBottom: 40,
-    paddingHorizontal: 40,
-    fontSize: 10,
-    fontFamily: "Helvetica",
-    color: "#1f2a44",
-  },
-  kicker: {
-    fontSize: 9,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: "#5c6b86",
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 18,
-    fontFamily: "Times-Bold",
-    marginBottom: 2,
-  },
-  subtitle: {
-    fontSize: 11,
-    color: "#3d4a63",
-    marginBottom: 14,
-  },
-  metaRow: {
-    flexDirection: "row",
-    borderWidth: 1,
-    borderColor: "#c9d0dc",
-    marginBottom: 16,
-  },
-  metaCell: {
-    flex: 1,
-    padding: 8,
-    borderRightWidth: 1,
-    borderRightColor: "#c9d0dc",
-  },
-  metaLabel: {
-    fontSize: 8,
-    color: "#5c6b86",
-    marginBottom: 2,
-    textTransform: "uppercase",
-  },
-  metaValue: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    backgroundColor: "#eef2f7",
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    marginTop: 8,
-  },
-  itemRow: {
-    flexDirection: "row",
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#d5dbe6",
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-  },
-  itemName: { flex: 1 },
-  itemMark: { width: 90, textAlign: "right", fontFamily: "Helvetica-Bold" },
-  comment: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    fontSize: 10,
-    lineHeight: 1.4,
-  },
-  legend: {
-    marginTop: 16,
-    fontSize: 8,
-    color: "#5c6b86",
-  },
-  sign: {
-    marginTop: 28,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  signLine: {
-    width: 200,
-    borderTopWidth: 1,
-    borderTopColor: "#1f2a44",
-    paddingTop: 4,
-    fontSize: 8,
-    color: "#5c6b86",
-  },
-  footer: {
-    position: "absolute",
-    bottom: 24,
-    left: 40,
-    right: 40,
-    fontSize: 8,
-    color: "#7a8699",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-});
+function buildStyles(layout: TemplateLayout) {
+  const { colors, type, table } = layout;
+  const titleSize = TITLE_PT[type.titleSize];
+  const bodySize = BODY_PT[type.bodySize];
+  const muted = mixHex(colors.ink, colors.page, 0.42);
+  const bandFg = isDarkHex(colors.band) ? "#ffffff" : colors.ink;
+  const markWidth = Math.round(PDF_CONTENT_WIDTH * (1 - table.criterionWidth / 100));
+  const rowPad = table.density === "spacious" ? 8 : 5;
+
+  return {
+    markWidth,
+    rowPad,
+    styles: StyleSheet.create({
+      page: {
+        paddingTop: 36,
+        paddingBottom: 40,
+        paddingHorizontal: 40,
+        fontSize: bodySize,
+        fontFamily: "Helvetica",
+        color: colors.ink,
+        backgroundColor: colors.page,
+      },
+      kicker: {
+        fontSize: Math.max(8, bodySize - 1),
+        letterSpacing: 1.2,
+        textTransform: "uppercase",
+        color: muted,
+        marginBottom: 4,
+      },
+      title: {
+        fontSize: titleSize,
+        fontFamily: "Times-Bold",
+        marginBottom: 2,
+        color: colors.ink,
+      },
+      titleRule: {
+        width: 72,
+        height: 3,
+        backgroundColor: colors.accent,
+        marginTop: 4,
+        marginBottom: 10,
+      },
+      subtitle: {
+        fontSize: bodySize,
+        color: muted,
+        marginBottom: 14,
+      },
+      metaRow: {
+        flexDirection: "row",
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginBottom: 16,
+      },
+      metaCell: {
+        flex: 1,
+        padding: 8,
+        borderRightWidth: 1,
+        borderRightColor: colors.border,
+      },
+      metaLabel: {
+        fontSize: Math.max(7, bodySize - 2),
+        color: muted,
+        marginBottom: 2,
+        textTransform: "uppercase",
+      },
+      metaValue: {
+        fontSize: bodySize,
+        fontFamily: "Helvetica-Bold",
+        color: colors.ink,
+      },
+      sectionTitle: {
+        fontSize: bodySize,
+        fontFamily: "Helvetica-Bold",
+        backgroundColor: colors.band,
+        color: bandFg,
+        paddingVertical: 5,
+        paddingHorizontal: 8,
+        marginTop: 8,
+      },
+      tableWrap: table.showOuterBorder
+        ? {
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderTopWidth: 0,
+          }
+        : {},
+      itemRow: {
+        flexDirection: "row",
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.border,
+        paddingVertical: 5,
+        paddingHorizontal: 8,
+      },
+      itemName: { flexGrow: 1, flexShrink: 1, fontSize: bodySize },
+      itemMark: {
+        width: markWidth,
+        textAlign: "right",
+        fontFamily: "Helvetica-Bold",
+        fontSize: bodySize,
+      },
+      comment: {
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        fontSize: bodySize,
+        lineHeight: 1.4,
+        color: colors.ink,
+      },
+      legend: {
+        marginTop: 16,
+        fontSize: Math.max(7, bodySize - 2),
+        color: muted,
+      },
+      sign: {
+        marginTop: 28,
+        flexDirection: "row",
+        justifyContent: "space-between",
+      },
+      signLine: {
+        width: 200,
+        borderTopWidth: 1,
+        borderTopColor: colors.accent,
+        paddingTop: 4,
+        fontSize: Math.max(7, bodySize - 2),
+        color: muted,
+      },
+      footer: {
+        position: "absolute",
+        bottom: 24,
+        left: 40,
+        right: 40,
+        fontSize: Math.max(7, bodySize - 2),
+        color: muted,
+        flexDirection: "row",
+        justifyContent: "space-between",
+      },
+    }),
+  };
+}
 
 export type ReportCardInput = {
   locale: Locale;
@@ -120,7 +168,6 @@ export type ReportCardInput = {
 const copy = {
   en: {
     district: "Northside Unified School District",
-    card: "Progress report",
     student: "Student",
     grade: "Grade",
     school: "School",
@@ -130,11 +177,9 @@ const copy = {
     comments: "Comments",
     teacher: "Teacher signature",
     parent: "Parent / guardian signature",
-    generated: "Generated from the Northside gradebook",
   },
   es: {
     district: "Distrito Escolar Unificado de Northside",
-    card: "Informe de progreso",
     student: "Estudiante",
     grade: "Grado",
     school: "Escuela",
@@ -144,7 +189,6 @@ const copy = {
     comments: "Comentarios",
     teacher: "Firma del maestro",
     parent: "Firma del padre / tutor",
-    generated: "Generado desde el libro de calificaciones de Northside",
   },
 };
 
@@ -169,6 +213,7 @@ function ReportCardPage({ card }: { card: ReportCardInput }) {
   const termName = locale === "es" ? term.nameEs : term.nameEn;
   const gradeName = locale === "es" ? course.gradeLevel.nameEs : course.gradeLevel.nameEn;
   const layout = normalizeLayout(course.template.layout);
+  const { styles, markWidth, rowPad } = buildStyles(layout);
   const headerCells = [
     layout.headerFields.student
       ? { label: t(locale, "student"), value: `${student.firstName} ${student.lastName}` }
@@ -177,8 +222,6 @@ function ReportCardPage({ card }: { card: ReportCardInput }) {
     layout.headerFields.grade ? { label: t(locale, "grade"), value: gradeName } : null,
     layout.headerFields.school ? { label: t(locale, "school"), value: course.site.name } : null,
   ].filter((c): c is { label: string; value: string } => Boolean(c));
-  const markWidth = layout.table.markColumnWidth === "wide" ? 150 : 90;
-  const rowPad = layout.table.density === "spacious" ? 8 : 5;
   const comments = course.template.sections.flatMap((s) =>
     s.items.filter((i) => i.itemType === "comment"),
   );
@@ -199,9 +242,10 @@ function ReportCardPage({ card }: { card: ReportCardInput }) {
   return (
     <Page size="LETTER" style={styles.page}>
       <Text style={styles.kicker}>{t(locale, "district")}</Text>
-      <Text style={styles.title}>{t(locale, "card")}</Text>
+      <Text style={styles.title}>{layoutTitle(layout, locale)}</Text>
+      <View style={styles.titleRule} />
       <Text style={styles.subtitle}>
-        {locale === "es" ? course.template.name : course.template.name}
+        {course.template.name}
       </Text>
       {headerCells.length > 0 ? (
         <View style={styles.metaRow}>
@@ -244,19 +288,21 @@ function ReportCardPage({ card }: { card: ReportCardInput }) {
             <Text style={styles.sectionTitle}>
               {locale === "es" ? section.titleEs : section.titleEn}
             </Text>
-            {markItems.map((item) => (
-              <View
-                key={item.id}
-                style={[styles.itemRow, { paddingVertical: rowPad }]}
-              >
-                <Text style={styles.itemName}>
-                  {locale === "es" ? item.titleEs : item.titleEn}
-                </Text>
-                <Text style={[styles.itemMark, { width: markWidth }]}>
-                  {markText(item.id)}
-                </Text>
-              </View>
-            ))}
+            <View style={styles.tableWrap}>
+              {markItems.map((item) => (
+                <View
+                  key={item.id}
+                  style={[styles.itemRow, { paddingVertical: rowPad }]}
+                >
+                  <Text style={styles.itemName}>
+                    {locale === "es" ? item.titleEs : item.titleEn}
+                  </Text>
+                  <Text style={[styles.itemMark, { width: markWidth }]}>
+                    {markText(item.id)}
+                  </Text>
+                </View>
+              ))}
+            </View>
             {showComments
               ? commentItems.map((item) => {
                   const grade = byItem.get(item.id);
@@ -311,7 +357,7 @@ function ReportCardPage({ card }: { card: ReportCardInput }) {
 
       <View style={styles.footer} fixed>
         <Text>{course.site.name}</Text>
-        <Text>{t(locale, "generated")}</Text>
+        <Text>{layoutFooter(layout, locale)}</Text>
       </View>
     </Page>
   );
