@@ -1,6 +1,6 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronUp, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -8,19 +8,27 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+const ICONS = {
+  save: Save,
+  up: ChevronUp,
+  down: ChevronDown,
+  remove: Trash2,
+} as const;
+
 type IconActionButtonProps = {
   label: string;
-  icon: LucideIcon;
+  action: keyof typeof ICONS;
   variant?: "outline" | "ghost" | "destructive";
   disabled?: boolean;
 };
 
 export function IconActionButton({
   label,
-  icon: Icon,
+  action,
   variant = "ghost",
   disabled = false,
 }: IconActionButtonProps) {
+  const Icon = ICONS[action];
   return (
     <Tooltip>
       <TooltipTrigger

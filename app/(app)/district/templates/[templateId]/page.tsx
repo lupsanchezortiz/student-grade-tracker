@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { ChevronDown, ChevronUp, Save, Trash2 } from "lucide-react";
 import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { IconActionButton } from "@/components/icon-action-button";
 import { PageHeader } from "@/components/page-header";
@@ -271,7 +270,7 @@ export default async function TemplateDetailPage({
                       ) : (
                         <input type="hidden" name="maxChars" value="" />
                       )}
-                      <IconActionButton label="Save item" icon={Save} variant="outline" />
+                      <IconActionButton label="Save item" action="save" variant="outline" />
                     </form>
                     <div className="flex shrink-0 items-center gap-1">
                       <form action={moveItemAction}>
@@ -279,7 +278,7 @@ export default async function TemplateDetailPage({
                         <input type="hidden" name="direction" value="up" />
                         <IconActionButton
                           label="Move up"
-                          icon={ChevronUp}
+                          action="up"
                           disabled={itemIndex === 0}
                         />
                       </form>
@@ -288,13 +287,13 @@ export default async function TemplateDetailPage({
                         <input type="hidden" name="direction" value="down" />
                         <IconActionButton
                           label="Move down"
-                          icon={ChevronDown}
+                          action="down"
                           disabled={itemIndex === section.items.length - 1}
                         />
                       </form>
                       <form action={deleteItemAction}>
                         <input type="hidden" name="id" value={item.id} />
-                        <IconActionButton label="Remove" icon={Trash2} variant="destructive" />
+                        <IconActionButton label="Remove" action="remove" variant="destructive" />
                       </form>
                     </div>
                   </div>
