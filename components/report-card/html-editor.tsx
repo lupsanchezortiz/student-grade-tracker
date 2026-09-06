@@ -54,8 +54,8 @@ export function DocumentHtmlEditor({
     />
   ) : (
     <p className="rounded-xl border border-dashed border-border px-4 py-10 text-sm text-muted-foreground">
-      Paste HTML to preview this card with the line items below. Term 1 shows sample marks;
-      later terms stay blank.
+      Paste HTML to preview this card with the line items on the template. Term 1 shows sample
+      marks; later terms stay blank.
     </p>
   );
 
@@ -107,11 +107,8 @@ export function DocumentHtmlEditor({
             placeholder="<!DOCTYPE html>…"
           />
         </div>
-      </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,34rem)]">
-        <div className="min-w-0">{children}</div>
-        <aside className="xl:sticky xl:top-4">
+        <aside>
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <p className="text-sm font-medium">Preview</p>
             <div className="flex rounded-lg border border-border p-0.5">
@@ -143,6 +140,8 @@ export function DocumentHtmlEditor({
           {previewFrame}
         </aside>
       </div>
+
+      <div className="min-w-0">{children}</div>
     </div>
   );
 }
