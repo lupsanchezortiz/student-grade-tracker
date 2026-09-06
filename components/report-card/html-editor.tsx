@@ -6,8 +6,10 @@ import { saveTemplateHtmlAction } from "@/lib/actions/mutations";
 import { localeLabel } from "@/lib/data/template-doc";
 import { TERM_STRUCTURE_NAMES } from "@/lib/data/terms";
 import { mergeDocument, mergeDocumentShowTags, sampleMergeValues } from "@/lib/documents/merge";
+import { checkMergeTags, hasMergeTagIssues } from "@/lib/documents/tag-check";
 import { TAG_HELP } from "@/lib/documents/tags";
 import type { TemplateDetail } from "@/lib/types";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
@@ -28,6 +30,10 @@ export function DocumentHtmlEditor({
       : mergeDocument(html, sample)
     : "";
   const itemCount = template.sections.reduce((n, section) => n + section.items.length, 0);
+  const tagIssues = useMemo(
+    () => (html.trim() ? checkMergeTags(html, template) : null),
+    [html, template],
+  );
 
   async function save() {
     setSaving(true);
@@ -107,6 +113,55 @@ export function DocumentHtmlEditor({
             placeholder="<!DOCTYPE html>…"
           />
         </div>
+
+        {tagIssues && hasMergeTagIssues(tagIssues) ? (
+          <div className="space-y-2">
+            {tagIssues.unknown.length > 0 ? (
+              <Alert variant="destructive">
+                <AlertTitle>Tags that will not fill</AlertTitle>
+                <AlertDescription>
+                  No line item or field matches{" "}
+                  <span className="font-mono">{tagIssues.unknown.join(" ")}</span>. They print
+                  blank.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {tagIssues.unused.length > 0 ? (
+              <Alert>
+                <AlertTitle>
+                  {tagIssues.unused.length === 1
+                    ? "1 line item is not used in the HTML"
+                    : `${tagIssues.unused.length} line items are not used in the HTML`}
+                </AlertTitle>
+                <AlertDescription>
+                  <ul className="mt-1 max-h-40 space-y-1 overflow-y-auto text-xs">
+                    {tagIssues.unused.map((row) => (
+                      <li key={row.label}>
+                        {row.label}
+                        <span className="ml-1.5 font-mono">{row.tags.join(" ")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {tagIssues.partial.length > 0 ? (
+              <Alert>
+                <AlertTitle>Missing term tags</AlertTitle>
+                <AlertDescription>
+                  <ul className="mt-1 max-h-40 space-y-1 overflow-y-auto text-xs">
+                    {tagIssues.partial.map((row) => (
+                      <li key={row.label}>
+                        {row.label} is missing{" "}
+                        <span className="font-mono">{row.tags.join(" ")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            ) : null}
+          </div>
+        ) : null}
 
         <aside>
           <div className="mb-2 flex flex-wrap items-center gap-2">
