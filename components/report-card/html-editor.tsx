@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { saveTemplateHtmlAction } from "@/lib/actions/mutations";
 import { localeLabel } from "@/lib/data/template-doc";
 import { TERM_STRUCTURE_NAMES } from "@/lib/data/terms";
-import { mergeDocument, sampleMergeValues } from "@/lib/documents/merge";
+import { mergeDocument, mergeDocumentShowTags, sampleMergeValues } from "@/lib/documents/merge";
 import { TAG_HELP } from "@/lib/documents/tags";
 import type { TemplateDetail } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,13 @@ export function DocumentHtmlEditor({
 }) {
   const [html, setHtml] = useState(template.html ?? "");
   const [saving, setSaving] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"student" | "tags">("student");
   const sample = useMemo(() => sampleMergeValues(template), [template]);
-  const preview = html.trim() ? mergeDocument(html, sample) : "";
+  const preview = html.trim()
+    ? previewMode === "tags"
+      ? mergeDocumentShowTags(html)
+      : mergeDocument(html, sample)
+    : "";
   const itemCount = template.sections.reduce((n, section) => n + section.items.length, 0);
 
   async function save() {
@@ -107,13 +112,33 @@ export function DocumentHtmlEditor({
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,34rem)]">
         <div className="min-w-0">{children}</div>
         <aside className="xl:sticky xl:top-4">
-          <p className="mb-1.5 text-sm font-medium">
-            Preview with line items
-            {itemCount ? (
-              <span className="ml-2 font-normal text-muted-foreground">
-                {itemCount} items · term 1 filled
-              </span>
-            ) : null}
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium">Preview</p>
+            <div className="flex rounded-lg border border-border p-0.5">
+              <Button
+                type="button"
+                size="xs"
+                variant={previewMode === "student" ? "default" : "ghost"}
+                onClick={() => setPreviewMode("student")}
+              >
+                Sample student
+              </Button>
+              <Button
+                type="button"
+                size="xs"
+                variant={previewMode === "tags" ? "default" : "ghost"}
+                onClick={() => setPreviewMode("tags")}
+              >
+                {"{{101}} tags"}
+              </Button>
+            </div>
+          </div>
+          <p className="mb-1.5 text-xs text-muted-foreground">
+            {previewMode === "tags"
+              ? "Shows the merge tags in place — line 01 is {{101}}, {{201}}, {{301}}."
+              : itemCount
+                ? `${itemCount} line items · term 1 filled with sample marks`
+                : "Term 1 filled with sample marks"}
           </p>
           {previewFrame}
         </aside>

@@ -32,6 +32,12 @@ export function mergeDocument(html: string, values: Record<string, string>): str
   return safe.replace(TAG, (_, key: string) => escapeHtml(values[key] ?? ""));
 }
 
+/** Preview mode: leave {{101}} visible instead of filling marks. */
+export function mergeDocumentShowTags(html: string): string {
+  const safe = sanitizeTemplateHtml(html);
+  return safe.replace(TAG, (_, key: string) => escapeHtml(`{{${key}}}`));
+}
+
 export function hasHtmlTemplate(html?: string | null): boolean {
   return Boolean(html && html.trim());
 }
