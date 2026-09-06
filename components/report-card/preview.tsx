@@ -315,6 +315,7 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
       </div>
 
       <div
+        data-testid="style-preview-card"
         className="rounded-xl border border-border p-5 shadow-inner"
         style={{ backgroundColor: colors.page, color: colors.ink, fontSize: bodyPx }}
       >
@@ -584,15 +585,18 @@ function ColorField({
           onChange={(e) => {
             const next = e.target.value;
             setText(next);
-            if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(next.trim())) {
-              onChange(next.trim());
-            }
+            if (/^#[0-9a-f]{6}$/i.test(next.trim())) onChange(next.trim());
           }}
           onInput={(e) => {
             const next = (e.target as HTMLInputElement).value;
             setText(next);
-            if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(next.trim())) {
-              onChange(next.trim());
+            if (/^#[0-9a-f]{6}$/i.test(next.trim())) onChange(next.trim());
+          }}
+          onBlur={() => {
+            if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(text.trim())) {
+              onChange(text.trim());
+            } else {
+              setText(value);
             }
           }}
         />
