@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { loginAction } from "@/lib/actions/auth";
-import { DEMO_ACCOUNTS } from "@/lib/data/seed";
+import { DEMO_ACCOUNTS } from "@/lib/data/demo-accounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
