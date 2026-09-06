@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { ChevronDown, ChevronUp, Save, Trash2 } from "lucide-react";
 import { CsvImportDialog } from "@/components/csv-import-dialog";
+import { IconActionButton } from "@/components/icon-action-button";
 import { PageHeader } from "@/components/page-header";
 import { DocumentHtmlEditor } from "@/components/report-card/html-editor";
 import { ReportCardPreview } from "@/components/report-card/preview";
@@ -269,35 +271,30 @@ export default async function TemplateDetailPage({
                       ) : (
                         <input type="hidden" name="maxChars" value="" />
                       )}
-                      <Button type="submit" size="sm" variant="outline" className="shrink-0">
-                        Save item
-                      </Button>
+                      <IconActionButton label="Save item" icon={Save} variant="outline" />
                     </form>
                     <div className="flex shrink-0 items-center gap-1">
                       <form action={moveItemAction}>
                         <input type="hidden" name="id" value={item.id} />
                         <input type="hidden" name="direction" value="up" />
-                        <Button type="submit" size="xs" variant="ghost" disabled={itemIndex === 0}>
-                          Up
-                        </Button>
+                        <IconActionButton
+                          label="Move up"
+                          icon={ChevronUp}
+                          disabled={itemIndex === 0}
+                        />
                       </form>
                       <form action={moveItemAction}>
                         <input type="hidden" name="id" value={item.id} />
                         <input type="hidden" name="direction" value="down" />
-                        <Button
-                          type="submit"
-                          size="xs"
-                          variant="ghost"
+                        <IconActionButton
+                          label="Move down"
+                          icon={ChevronDown}
                           disabled={itemIndex === section.items.length - 1}
-                        >
-                          Down
-                        </Button>
+                        />
                       </form>
                       <form action={deleteItemAction}>
                         <input type="hidden" name="id" value={item.id} />
-                        <Button type="submit" size="xs" variant="destructive">
-                          Remove
-                        </Button>
+                        <IconActionButton label="Remove" icon={Trash2} variant="destructive" />
                       </form>
                     </div>
                   </div>
