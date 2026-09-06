@@ -198,68 +198,85 @@ export default async function TemplateDetailPage({
               </form>
             </div>
 
-            <ul className="mt-4 space-y-3 border-t border-border pt-4">
+            <ul className="mt-4 space-y-2 border-t border-border pt-4">
               {section.items.map((item, itemIndex) => (
-                <li key={item.id} className="rounded-lg bg-muted/40 p-3">
-                  <form action={updateItemAction} className="grid gap-2 sm:grid-cols-2">
-                    <input type="hidden" name="id" value={item.id} />
-                    <Input name="titleEn" defaultValue={item.titleEn} required />
-                    <Input name="titleEs" defaultValue={item.titleEs} required />
-                    <select
-                      name="itemType"
-                      defaultValue={item.itemType}
-                      className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm"
+                <li key={item.id} className="rounded-lg bg-muted/40 p-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <form
+                      action={updateItemAction}
+                      className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
                     >
-                      <option value="mark">Mark (dropdown)</option>
-                      <option value="comment">Comment</option>
-                    </select>
-                    <Input
-                      name="printCode"
-                      defaultValue={item.printCode ?? ""}
-                      placeholder="Print code (101 or ILP_GOAL)"
-                    />
-                    {item.itemType === "comment" ? (
+                      <input type="hidden" name="id" value={item.id} />
                       <Input
-                        name="maxChars"
-                        type="number"
-                        min={20}
-                        max={4000}
-                        defaultValue={item.maxChars ?? 500}
-                        placeholder="Max characters"
+                        name="titleEn"
+                        defaultValue={item.titleEn}
+                        required
+                        className="min-w-36 flex-1"
                       />
-                    ) : (
-                      <input type="hidden" name="maxChars" value="" />
-                    )}
-                    <Button type="submit" size="sm" variant="outline">
-                      Save item
-                    </Button>
-                  </form>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <form action={moveItemAction}>
-                      <input type="hidden" name="id" value={item.id} />
-                      <input type="hidden" name="direction" value="up" />
-                      <Button type="submit" size="xs" variant="ghost" disabled={itemIndex === 0}>
-                        Up
-                      </Button>
-                    </form>
-                    <form action={moveItemAction}>
-                      <input type="hidden" name="id" value={item.id} />
-                      <input type="hidden" name="direction" value="down" />
-                      <Button
-                        type="submit"
-                        size="xs"
-                        variant="ghost"
-                        disabled={itemIndex === section.items.length - 1}
+                      <Input
+                        name="titleEs"
+                        defaultValue={item.titleEs}
+                        required
+                        className="min-w-36 flex-1"
+                      />
+                      <select
+                        name="itemType"
+                        defaultValue={item.itemType}
+                        className="h-8 w-28 shrink-0 rounded-lg border border-input bg-background px-2 text-sm"
                       >
-                        Down
+                        <option value="mark">Mark (dropdown)</option>
+                        <option value="comment">Comment</option>
+                      </select>
+                      <Input
+                        name="printCode"
+                        defaultValue={item.printCode ?? ""}
+                        placeholder="Code"
+                        className="w-24 shrink-0"
+                      />
+                      {item.itemType === "comment" ? (
+                        <Input
+                          name="maxChars"
+                          type="number"
+                          min={20}
+                          max={4000}
+                          defaultValue={item.maxChars ?? 500}
+                          placeholder="Chars"
+                          className="w-16 shrink-0"
+                        />
+                      ) : (
+                        <input type="hidden" name="maxChars" value="" />
+                      )}
+                      <Button type="submit" size="sm" variant="outline" className="shrink-0">
+                        Save item
                       </Button>
                     </form>
-                    <form action={deleteItemAction}>
-                      <input type="hidden" name="id" value={item.id} />
-                      <Button type="submit" size="xs" variant="destructive">
-                        Remove
-                      </Button>
-                    </form>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <form action={moveItemAction}>
+                        <input type="hidden" name="id" value={item.id} />
+                        <input type="hidden" name="direction" value="up" />
+                        <Button type="submit" size="xs" variant="ghost" disabled={itemIndex === 0}>
+                          Up
+                        </Button>
+                      </form>
+                      <form action={moveItemAction}>
+                        <input type="hidden" name="id" value={item.id} />
+                        <input type="hidden" name="direction" value="down" />
+                        <Button
+                          type="submit"
+                          size="xs"
+                          variant="ghost"
+                          disabled={itemIndex === section.items.length - 1}
+                        >
+                          Down
+                        </Button>
+                      </form>
+                      <form action={deleteItemAction}>
+                        <input type="hidden" name="id" value={item.id} />
+                        <Button type="submit" size="xs" variant="destructive">
+                          Remove
+                        </Button>
+                      </form>
+                    </div>
                   </div>
                 </li>
               ))}
