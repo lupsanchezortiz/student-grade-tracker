@@ -103,7 +103,7 @@ export type TemplateItem = {
   itemType: ItemType;
   /** Character limit for comment items. Ignored for marks. */
   maxChars?: number;
-  /** Term-1 merge code, e.g. "101" → {{101}} / {{201}} / {{301}}. Named codes: ILP_GOAL, FALL_COMMENTS. */
+  /** Line number (`01`) or named code. HTML expands `01` to {{101}} / {{201}} / {{301}} (and {{401}} for quarters). */
   printCode?: string;
 };
 

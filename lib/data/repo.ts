@@ -10,6 +10,7 @@ import {
 } from "@/lib/data/access";
 import { findTemplateForGrade, hydrateCourse, hydrateTemplate } from "@/lib/data/hydrate";
 import { defaultLayout, normalizeLayout } from "@/lib/data/layout";
+import { normalizePrintCode } from "@/lib/documents/print-code";
 import { sanitizeTemplateHtml } from "@/lib/documents/sanitize";
 import type { TemplateLayout } from "@/lib/types";
 import { loadState, mutateState, resetState } from "@/lib/data/store";
@@ -414,7 +415,7 @@ export async function addItem(
       titleEs: input.titleEs.trim(),
       itemType: input.itemType,
       maxChars: input.itemType === "comment" ? input.maxChars || 500 : undefined,
-      printCode: input.printCode?.trim() || undefined,
+      printCode: normalizePrintCode(input.printCode),
     };
     state.items.push(item);
     return item;
@@ -434,7 +435,7 @@ export async function updateItem(
     item.titleEs = input.titleEs.trim();
     item.itemType = input.itemType;
     item.maxChars = input.itemType === "comment" ? input.maxChars || 500 : undefined;
-    item.printCode = input.printCode?.trim() || undefined;
+    item.printCode = normalizePrintCode(input.printCode);
     return item;
   });
 }

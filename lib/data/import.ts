@@ -2,13 +2,15 @@ import { requireUser } from "@/lib/auth/session";
 import { assertDistrict, assertSiteAdmin } from "@/lib/data/access";
 import { findTemplateForGrade } from "@/lib/data/hydrate";
 import { mutateState } from "@/lib/data/store";
-import { csvCell, parseCsv, type ImportResult } from "@/lib/csv/parse";
+import { csvCell, parseCsv, type CsvRow, type ImportResult } from "@/lib/csv/parse";
 import type { ImportKind } from "@/lib/csv/samples";
+import { normalizePrintCode, printCodesMatch } from "@/lib/documents/print-code";
 import type {
   Locale,
   SiteRole,
   StoreState,
   Student,
+  TemplateItem,
 } from "@/lib/types";
 
 const id = () => crypto.randomUUID();
@@ -299,34 +301,79 @@ function ensureScale(state: StoreState, raw: string) {
 }
 
 function isFourPoint(name: string) {
-  return /^1\s*[-–to]+\s*4$/i.test(name.trim());
+  const n = name.trim();
+  return /^1\s*[-–to]+\s*4$/i.test(n) || /^1\s*,\s*2\s*,\s*3\s*,\s*4$/.test(n);
 }
 
-export async function importTemplateItemsCsv(templateId: string, csv: string) {
-  const user = await requireUser();
-  assertDistrict(user);
-  const { rows } = parseCsv(csv);
-  return mutateState((state) => {
-    const result = emptyResult();
-    const template = state.templates.find((t) => t.id === templateId);
-    if (!template) {
-      result.errors.push({ row: 0, message: "Template not found." });
-      return result;
+function isSkippedScale(name: string) {
+  return /^comments?$/i.test(name.trim());
+}
+
+function parseItemType(raw: string): "mark" | "comment" {
+  const value = raw.trim().toLowerCase();
+  if (value === "c" || value === "comment" || value.includes("comment")) return "comment";
+  return "mark";
+}
+
+const DEFAULT_SECTION_EN = "Line items";
+const DEFAULT_SECTION_ES = "Criterios";
+
+export function applyTemplateItemsImport(
+  state: StoreState,
+  templateId: string,
+  rows: CsvRow[],
+): ImportResult {
+  const result = emptyResult();
+  const template = state.templates.find((t) => t.id === templateId);
+  if (!template) {
+    result.errors.push({ row: 0, message: "Template not found." });
+    return result;
+  }
+  const sectionIds = () =>
+    new Set(state.sections.filter((s) => s.templateId === templateId).map((s) => s.id));
+
+  rows.forEach((row, index) => {
+    const rowNo = index + 2;
+    const titleEn = csvCell(row, "list_item_eng", "title_en", "item", "title");
+    if (!titleEn) {
+      result.errors.push({ row: rowNo, message: "Need list_item_eng or title_en." });
+      result.skipped++;
+      return;
     }
-    rows.forEach((row, index) => {
-      const rowNo = index + 2;
-      const sectionEn = csvCell(row, "section_en", "section");
-      const titleEn = csvCell(row, "title_en", "item", "title");
-      if (!sectionEn || !titleEn) {
-        result.errors.push({ row: rowNo, message: "Need section_en and title_en." });
-        result.skipped++;
-        return;
-      }
-      const typeRaw = csvCell(row, "type", "item_type").toLowerCase();
-      const itemType = typeRaw.includes("comment") ? "comment" : "mark";
-      let section = state.sections.find(
-        (s) => s.templateId === templateId && s.titleEn.toLowerCase() === sectionEn.toLowerCase(),
+    const sectionEnRaw = csvCell(row, "section_en", "section");
+    const sectionEsRaw = csvCell(row, "section_es");
+    const sectionEn = sectionEnRaw || DEFAULT_SECTION_EN;
+    const sectionEs = sectionEsRaw || (sectionEnRaw ? sectionEn : DEFAULT_SECTION_ES);
+    const titleEs = csvCell(row, "list_item_span", "title_es") || titleEn;
+    const itemType = parseItemType(csvCell(row, "mark/comment", "type", "item_type"));
+    const printCode = normalizePrintCode(csvCell(row, "print_code", "printcode"));
+    const maxCharsRaw = csvCell(row, "char", "max_chars", "max_characters");
+    const maxChars =
+      itemType === "comment" ? (maxCharsRaw ? Number(maxCharsRaw) || 500 : 500) : undefined;
+
+    const ids = sectionIds();
+    let existing = printCode
+      ? state.items.find((item) => ids.has(item.sectionId) && printCodesMatch(item.printCode, printCode))
+      : undefined;
+
+    let section = state.sections.find(
+      (s) => s.templateId === templateId && s.titleEn.toLowerCase() === sectionEn.toLowerCase(),
+    );
+
+    if (!existing && section) {
+      existing = state.items.find(
+        (item) => item.sectionId === section!.id && item.titleEn.toLowerCase() === titleEn.toLowerCase(),
       );
+    }
+
+    if (existing) {
+      existing.titleEn = titleEn;
+      existing.titleEs = titleEs || existing.titleEs;
+      existing.itemType = itemType;
+      existing.maxChars = itemType === "comment" ? maxChars || 500 : undefined;
+      if (printCode) existing.printCode = printCode;
+      result.updated++;
+    } else {
       if (!section) {
         const max = Math.max(
           0,
@@ -337,52 +384,48 @@ export async function importTemplateItemsCsv(templateId: string, csv: string) {
           templateId,
           sortOrder: max + 1,
           titleEn: sectionEn,
-          titleEs: csvCell(row, "section_es") || sectionEn,
+          titleEs: sectionEs,
         };
         state.sections.push(section);
       }
-      const maxCharsRaw = csvCell(row, "max_chars", "max_characters");
-      const maxChars = maxCharsRaw ? Number(maxCharsRaw) : itemType === "comment" ? 500 : undefined;
-      const existing = state.items.find(
-        (i) => i.sectionId === section!.id && i.titleEn.toLowerCase() === titleEn.toLowerCase(),
+      const sort = Math.max(
+        0,
+        ...state.items.filter((i) => i.sectionId === section!.id).map((i) => i.sortOrder),
       );
-      if (existing) {
-        existing.titleEs = csvCell(row, "title_es") || existing.titleEs;
-        existing.itemType = itemType;
-        existing.maxChars = itemType === "comment" ? maxChars || 500 : undefined;
-        existing.printCode = csvCell(row, "print_code", "printcode") || existing.printCode;
-        result.updated++;
-      } else {
-        const sort = Math.max(
-          0,
-          ...state.items.filter((i) => i.sectionId === section!.id).map((i) => i.sortOrder),
-        );
-        state.items.push({
-          id: id(),
-          sectionId: section.id,
-          sortOrder: sort + 1,
-          titleEn,
-          titleEs: csvCell(row, "title_es") || titleEn,
-          itemType,
-          maxChars: itemType === "comment" ? maxChars || 500 : undefined,
-          printCode: csvCell(row, "print_code", "printcode") || undefined,
+      const item: TemplateItem = {
+        id: id(),
+        sectionId: section.id,
+        sortOrder: sort + 1,
+        titleEn,
+        titleEs,
+        itemType,
+        maxChars: itemType === "comment" ? maxChars || 500 : undefined,
+        printCode,
+      };
+      state.items.push(item);
+      result.created++;
+    }
+
+    const scaleName = csvCell(row, "grade_scale", "scale");
+    if (scaleName && itemType === "mark" && !isSkippedScale(scaleName)) {
+      const scale = ensureScale(state, scaleName);
+      if (scale) template.gradeScaleId = scale.id;
+      else {
+        result.errors.push({
+          row: rowNo,
+          message: `Unknown scale “${scaleName}”. Use 1-4, 1,2,3,4, or an existing scale name.`,
         });
-        result.created++;
       }
-      const scaleName = csvCell(row, "scale", "grade_scale");
-      if (scaleName && itemType === "mark") {
-        const scale = ensureScale(state, scaleName);
-        if (scale) template.gradeScaleId = scale.id;
-        else {
-          result.errors.push({
-            row: rowNo,
-            message: `Unknown scale “${scaleName}”. Use 1-4 or an existing scale name.`,
-          });
-        }
-      }
-    });
-    return result;
+    }
   });
+  return result;
+}
+
+export async function importTemplateItemsCsv(templateId: string, csv: string) {
+  const user = await requireUser();
+  assertDistrict(user);
+  const { rows } = parseCsv(csv);
+  return mutateState((state) => applyTemplateItemsImport(state, templateId, rows));
 }
 
 export async function runImport(kind: ImportKind, csv: string, opts?: { siteId?: string; templateId?: string }) {

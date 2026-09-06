@@ -30,7 +30,7 @@ export const TAG_HELP: { tag: string; meaning: string }[] = [
   { tag: "{{SCHOOL}}", meaning: "School name" },
   { tag: "{{YEAR}}", meaning: "School year" },
   { tag: "{{TEACHER_NAME}}", meaning: "Course teacher(s)" },
-  { tag: "{{101}}", meaning: "Item print code 101, term 1. Use {{201}} / {{301}} for later terms" },
+  { tag: "{{101}}", meaning: "Line 01 in term 1. CSV print_code is 01; use {{201}} / {{301}} (and {{401}} for quarters)" },
   { tag: "{{1A}} {{2A}} {{3A}}", meaning: "Absences for terms 1–3" },
   { tag: "{{1T}} {{2T}} {{3T}}", meaning: "Tardies for terms 1–3" },
   { tag: "{{ILP_GOAL_TEXT}}", meaning: "ILP Goal comment item (print code ILP_GOAL)" },

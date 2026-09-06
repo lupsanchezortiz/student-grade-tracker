@@ -7,6 +7,11 @@ import type {
   TemplateItem,
   Term,
 } from "@/lib/types";
+import {
+  isNamedPrintCode,
+  parsePrintLineNumber,
+  termMergeTag,
+} from "@/lib/documents/print-code";
 import { sanitizeTemplateHtml } from "@/lib/documents/sanitize";
 
 const TAG = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
@@ -34,14 +39,7 @@ export function htmlForLocale(template: { htmlEn: string; htmlEs: string }, loca
 }
 
 function numericPrintCode(code: string): number | null {
-  if (!/^\d{3}$/.test(code)) return null;
-  return Number(code);
-}
-
-function termTag(base: number, termIndex: number): string {
-  const ones = base % 100;
-  const hundreds = (termIndex + 1) * 100;
-  return String(hundreds + ones);
+  return parsePrintLineNumber(code);
 }
 
 export function buildMergeValues(input: {
@@ -97,23 +95,23 @@ export function buildMergeValues(input: {
     const code = item.printCode?.trim();
     if (!code) continue;
     const named = code.toUpperCase();
-    if (named === "ILP_GOAL") {
-      const first = terms[0];
-      const g = first ? byItemTerm.get(`${item.id}:${first.id}`) : undefined;
-      values.ILP_GOAL_TEXT = g?.comment ?? "";
-      continue;
-    }
-    if (named === "FALL_COMMENTS" || named === "WINTER_COMMENTS" || named === "SPRING_COMMENTS") {
+    if (isNamedPrintCode(named)) {
+      if (named === "ILP_GOAL") {
+        const first = terms[0];
+        const g = first ? byItemTerm.get(`${item.id}:${first.id}`) : undefined;
+        values.ILP_GOAL_TEXT = g?.comment ?? "";
+        continue;
+      }
       const term = named === "FALL_COMMENTS" ? terms[0] : named === "WINTER_COMMENTS" ? terms[1] : terms[2];
       const g = term ? byItemTerm.get(`${item.id}:${term.id}`) : undefined;
       values[named] = g?.comment ?? "";
       continue;
     }
-    const base = numericPrintCode(code);
-    if (base == null) continue;
+    const line = numericPrintCode(code);
+    if (line == null) continue;
     terms.forEach((term, index) => {
       const g = byItemTerm.get(`${item.id}:${term.id}`);
-      const tag = termTag(base, index);
+      const tag = termMergeTag(line, index);
       if (item.itemType === "comment") {
         values[tag] = g?.comment ?? "";
       } else {

@@ -24,6 +24,7 @@ import {
   listScales,
   listYears,
 } from "@/lib/data/repo";
+import { printCodePreview, previewTermMergeTags } from "@/lib/documents/print-code";
 
 export default async function TemplateDetailPage({
   params,
@@ -148,6 +149,13 @@ export default async function TemplateDetailPage({
         </div>
       )}
 
+      <p className="mb-3 text-sm text-muted-foreground">
+        Line number 01 becomes{" "}
+        <span className="font-mono">
+          {previewTermMergeTags(1, template.year.termStructure).join(" ")}
+        </span>{" "}
+        in the HTML document for this {template.year.termStructure} year.
+      </p>
       <div className="space-y-6">
         {template.sections.map((section, index) => (
           <section
@@ -199,7 +207,9 @@ export default async function TemplateDetailPage({
             </div>
 
             <ul className="mt-4 space-y-2 border-t border-border pt-4">
-              {section.items.map((item, itemIndex) => (
+              {section.items.map((item, itemIndex) => {
+                const tags = printCodePreview(item.printCode, template.year.termStructure);
+                return (
                 <li key={item.id} className="rounded-lg bg-muted/40 p-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <form
@@ -227,12 +237,21 @@ export default async function TemplateDetailPage({
                         <option value="mark">Mark (dropdown)</option>
                         <option value="comment">Comment</option>
                       </select>
-                      <Input
-                        name="printCode"
-                        defaultValue={item.printCode ?? ""}
-                        placeholder="Code"
-                        className="w-24 shrink-0"
-                      />
+                      <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                        Line number
+                        <Input
+                          name="printCode"
+                          defaultValue={item.printCode ?? ""}
+                          placeholder="01"
+                          aria-label="Line number"
+                          className="w-16"
+                        />
+                      </label>
+                      {tags ? (
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {tags}
+                        </span>
+                      ) : null}
                       {item.itemType === "comment" ? (
                         <Input
                           name="maxChars"
@@ -279,7 +298,8 @@ export default async function TemplateDetailPage({
                     </div>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
 
             <form action={addItemAction} className="mt-3 grid gap-2 sm:grid-cols-6">
@@ -294,7 +314,7 @@ export default async function TemplateDetailPage({
                 <option value="mark">Mark</option>
                 <option value="comment">Comment</option>
               </select>
-              <Input name="printCode" placeholder="Print code 101" />
+              <Input name="printCode" placeholder="Line number 01" aria-label="Line number" />
               <Input name="maxChars" type="number" min={20} placeholder="Chars (comments)" />
               <Button type="submit" variant="secondary">
                 Add item

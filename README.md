@@ -51,11 +51,13 @@ Without those env vars, demo mode stays on so you can use the product immediatel
 System admins paste HTML on a template. Merge tags fill from the gradebook:
 
 - `{{STUDENT_NAME}}`, `{{STUDENT_ID}}`, `{{GRADE}}`, `{{SCHOOL}}`, `{{YEAR}}`, `{{TEACHER_NAME}}`
-- `{{101}}` / `{{201}}` / `{{301}}` — item print code `101` in terms 1–3
+- `{{101}}` / `{{201}}` / `{{301}}` — line number `01` in terms 1–3 (quarters also use `{{401}}`)
 - `{{1A}}` `{{1T}}` — absences and tardies
 - `{{ILP_GOAL_TEXT}}`, `{{FALL_COMMENTS}}`, `{{WINTER_COMMENTS}}`, `{{SPRING_COMMENTS}}`
 
-The demo includes a **Kindergarten standards report** built from a letter-size HTML file (print codes 101–147). Grade 3 still uses the built-in PDF unless you add HTML.
+CSV `print_code` is the short line number (`01`, `08`, or a named code). The HTML document uses `termIndex × 100 + line` so a trimester item `01` fills `{{101}} {{201}} {{301}}`.
+
+The demo includes a **Kindergarten standards report** built from a letter-size HTML file (line numbers 01–47 as tags 101–147). Grade 3 still uses the built-in PDF unless you add HTML.
 
 Scripts and event handlers are stripped on save. Teachers do not edit HTML.
 
@@ -66,8 +68,12 @@ District **CSV import** (system admin) and site Students / Staff / Courses pages
 - Students: `site_code,student_number,first_name,last_name,preferred_name,grade,home_language`
 - Staff: `site_code,full_name,email,role`
 - Courses: `site_code,year,grade,name,teacher_email`
-- Template items (on the template): `section_en,section_es,title_en,title_es,type,scale,max_chars,print_code`
+- Template items (on the template): `list_item_eng,list_item_span,grade_scale,mark/comment,print_code,char`
+  Also accepts `section_en,section_es,title_en,title_es,type,scale,max_chars`.
+  `print_code` is the line number (`01`). HTML tags become `{{101}}` `{{201}}` `{{301}}` (and `{{401}}` for quarters).
+  `mark/comment` is `m` or `c`. `grade_scale` of `1,2,3,4` or `1-4` sets a 1–4 scale; `Comment` is ignored.
+  `char` applies to comments only. Missing section columns default to Line items / Criterios.
 
-A `scale` of `1-4` creates a 1 (lowest) through 4 (highest) scale. Comment rows such as `ILP Goal` can set `max_chars`.
+A `scale` of `1-4` or `1,2,3,4` creates a 1 (lowest) through 4 (highest) scale. Comment rows can set `char` / `max_chars`.
 
 Report-card templates include a **style panel**: custom title/footer copy (EN/ES), type size, page and table colors, criterion vs mark column width, and header field visibility. The live preview and the printed PDF use the same saved `layout`.

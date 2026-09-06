@@ -90,6 +90,17 @@ export function CsvImportDialog({
         <p className="text-sm text-muted-foreground">
           Upload a CSV, review the rows, then import. Matching records are updated instead of duplicated.
         </p>
+        {kind === "template_items" ? (
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">print_code</span> is the line number
+            (01, 02, 08), not the HTML tag. Tags expand from the school year’s terms:
+            trimesters use <span className="font-mono">{"{{101}} {{201}} {{301}}"}</span>,
+            semesters two terms, quarters four (
+            <span className="font-mono">{"{{401}}"}</span>). Match existing items by line
+            number, or by section + title. Type is <span className="font-mono">m</span> or{" "}
+            <span className="font-mono">c</span>.
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <Button type="button" size="sm" variant="outline" onClick={downloadSample}>
             Download sample

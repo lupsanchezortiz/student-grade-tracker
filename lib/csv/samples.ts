@@ -12,10 +12,15 @@ export const SAMPLE_COURSES = `site_code,year,grade,name,teacher_email
 MPL,2026–27,3,Grade 3 Homeroom — Lee,jordan.lee@maple.northside.edu
 `;
 
-export const SAMPLE_TEMPLATE_ITEMS = `section_en,section_es,title_en,title_es,type,scale,max_chars,print_code
-Language arts,Artes del lenguaje,Reading,Lectura,mark,1-4,,101
-Language arts,Artes del lenguaje,Writing,Escritura,mark,1-4,,102
-Teacher comments,Comentarios,ILP Goal,Meta del PIL,comment,,500,ILP_GOAL
+export const SAMPLE_TEMPLATE_ITEMS = `list_item_eng,list_item_span,grade_scale,mark/comment,print_code,char
+Names uppercase letters,Nombra letras mayúsculas,"1,2,3,4",m,01,1
+Names lowercase letters,Nombra letras minúsculas,"1,2,3,4",m,02,1
+Produces 1 to 1 letter sound correspondences for each letter,Produce correspondencias de sonido de 1 a 1 para cada letra,"1,2,3,4",m,03,1
+"Identifies beginning, middle, ending sounds of a spoken word","Identifica sonidos iniciales, medios y finales de una palabra hablada","1,2,3,4",m,04,1
+Demonstrates understanding of rhyming words,Demuestra comprensión de las palabras que riman,"1,2,3,4",m,05,1
+Demonstrates understanding of blending and segmenting,Demuestra comprensión de la combinación y segmentación de sonidos,"1,2,3,4",m,06,1
+Reads common high frequency words by sight,Lee palabras comunes de alta frecuencia a simple vista,"1,2,3,4",m,07,1
+Teacher Comments,Comentarios del maestro,Comment,c,08,500
 `;
 
 export const SAMPLES = {
