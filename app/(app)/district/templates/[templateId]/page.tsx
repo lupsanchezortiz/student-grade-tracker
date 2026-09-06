@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { IconActionButton } from "@/components/icon-action-button";
 import { PageHeader } from "@/components/page-header";
@@ -161,10 +162,11 @@ export default async function TemplateDetailPage({
       </p>
       <div className="space-y-6">
         {template.sections.map((section, index) => (
-          <section
+          <CollapsibleSection
             key={section.id}
-            className="rounded-xl border border-border bg-card p-4"
-          >
+            itemCount={section.items.length}
+            defaultOpen={index === 0}
+            header={
             <form action={updateSectionAction} className="grid gap-3 sm:grid-cols-[1fr_auto]">
               <input type="hidden" name="id" value={section.id} />
               <input type="hidden" name="locale" value={template.locale} />
@@ -180,7 +182,9 @@ export default async function TemplateDetailPage({
                 </Button>
               </div>
             </form>
-            <div className="mt-2 flex flex-wrap gap-2">
+            }
+            toolbar={
+            <>
               <form action={moveSectionAction}>
                 <input type="hidden" name="id" value={section.id} />
                 <input type="hidden" name="direction" value="up" />
@@ -206,8 +210,9 @@ export default async function TemplateDetailPage({
                   Delete section
                 </Button>
               </form>
-            </div>
-
+            </>
+            }
+          >
             <ul className="mt-4 space-y-2 border-t border-border pt-4">
               {section.items.map((item, itemIndex) => (
                 <li key={item.id} className="rounded-lg bg-muted/40 p-2">
@@ -331,7 +336,7 @@ export default async function TemplateDetailPage({
                 Add item
               </Button>
             </form>
-          </section>
+          </CollapsibleSection>
         ))}
       </div>
 
