@@ -28,7 +28,7 @@ import {
 } from "@/lib/data/repo";
 import { itemTitle, localeLabel, sectionTitle } from "@/lib/data/template-doc";
 import { TERM_STRUCTURE_NAMES } from "@/lib/data/terms";
-import { previewTermMergeTags } from "@/lib/documents/print-code";
+import { normalizePrintCode, previewTermMergeTags } from "@/lib/documents/print-code";
 
 export default async function TemplateDetailPage({
   params,
@@ -258,7 +258,7 @@ export default async function TemplateDetailPage({
                       )}
                       <Input
                         name="printCode"
-                        defaultValue={item.printCode ?? ""}
+                        defaultValue={normalizePrintCode(item.printCode) ?? ""}
                         placeholder="01"
                         aria-label="Print code"
                         className="w-16 font-mono"

@@ -5,6 +5,7 @@ import { createSeedState } from "@/lib/data/seed";
 import { parseLocale } from "@/lib/data/template-doc";
 import { parseTermStructure } from "@/lib/data/terms";
 import { ensureKindergarten } from "@/lib/documents/kindergarten";
+import { normalizePrintCode } from "@/lib/documents/print-code";
 import type { ReportCardTemplate, StoreState } from "@/lib/types";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -76,6 +77,7 @@ function migrateState(state: StoreState): StoreState {
       const template = state.templates.find((t) => t.id === section?.templateId);
       item.gradeScaleId = template?.gradeScaleId;
     }
+    item.printCode = normalizePrintCode(item.printCode);
   }
   ensureKindergarten(state);
   return state;

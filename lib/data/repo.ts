@@ -517,7 +517,7 @@ export async function cloneTemplateLanguage(
           titleEs: item.titleEs,
           itemType: item.itemType,
           maxChars: item.maxChars,
-          printCode: item.printCode,
+          printCode: normalizePrintCode(item.printCode),
           gradeScaleId: item.gradeScaleId,
         });
       }
