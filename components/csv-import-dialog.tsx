@@ -100,7 +100,9 @@ export function CsvImportDialog({
             number, or by section + title. Type is <span className="font-mono">m</span> or{" "}
             <span className="font-mono">c</span>. This template’s language picks{" "}
             <span className="font-mono">list_item_eng</span> or{" "}
-            <span className="font-mono">list_item_span</span>.
+            <span className="font-mono">list_item_span</span>.{" "}
+            <span className="font-medium text-foreground">grade_scale</span> applies to that
+            line item, not the whole template.
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
