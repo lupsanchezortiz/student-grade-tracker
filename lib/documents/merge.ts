@@ -2,14 +2,17 @@ import type {
   AttendanceRecord,
   CourseDetail,
   Grade,
+  GradeScaleMark,
   Locale,
   Student,
+  TemplateDetail,
   TemplateItem,
   Term,
 } from "@/lib/types";
 import {
   isNamedPrintCode,
   parsePrintLineNumber,
+  termCountForStructure,
   termMergeTag,
 } from "@/lib/documents/print-code";
 import { sanitizeTemplateHtml } from "@/lib/documents/sanitize";
@@ -154,35 +157,77 @@ ${bodies}
 </html>`;
 }
 
-export function sampleMergeValues(): Record<string, string> {
+function sampleMarkCode(template: TemplateDetail, item: TemplateItem): string {
+  const scaleId = item.gradeScaleId || template.gradeScaleId || template.scale.id;
+  const marks: GradeScaleMark[] =
+    (scaleId && template.marksByScaleId[scaleId]) ||
+    template.marks.filter((m) => m.scaleId === scaleId);
+  const pick =
+    marks.find((m) => m.isPassing && m.code.toUpperCase() !== "NYA") ?? marks[0];
+  return pick?.code ?? "3";
+}
+
+export function sampleMergeValues(template?: TemplateDetail): Record<string, string> {
+  const locale = template?.locale ?? "en";
+  const terms = template ? termCountForStructure(template.termStructure) : 3;
   const values: Record<string, string> = {
-    STUDENT_NAME: "Sofia Alvarez",
+    STUDENT_NAME: locale === "es" ? "Sofía Álvarez" : "Sofia Alvarez",
     STUDENT_ID: "20260001",
-    GRADE: "Kindergarten",
+    GRADE: locale === "es" ? "Kinder" : "Kindergarten",
     SCHOOL: "Maple Elementary",
     YEAR: "2026–27",
     TEACHER_NAME: "Priya Shah",
     TEACHER_SIGNATURE: "Priya Shah",
-    TEACHER_DATE: "Sep 6, 2026",
+    TEACHER_DATE: locale === "es" ? "6 sept 2026" : "Sep 6, 2026",
     PARENT_SIGNATURE: "",
     PARENT_DATE: "",
     ILP_GOAL_TEXT: "Build letter-sound fluency in small group.",
     FALL_COMMENTS: "Sofia is a joyful classmate and is growing as a reader.",
     WINTER_COMMENTS: "",
     SPRING_COMMENTS: "",
-    "1A": "2",
-    "2A": "",
-    "3A": "",
-    "1T": "1",
-    "2T": "",
-    "3T": "",
   };
-  for (let n = 1; n <= 47; n++) {
-    const pad = String(n).padStart(2, "0");
-    values[`1${pad}`] = n <= 12 ? "3" : "";
-    values[`2${pad}`] = "";
-    values[`3${pad}`] = "";
+  for (let n = 1; n <= terms; n++) {
+    values[`${n}A`] = n === 1 ? "2" : "";
+    values[`${n}T`] = n === 1 ? "1" : "";
   }
-  values["147"] = "Practicing uppercase letters daily.";
+
+  const items = template?.sections.flatMap((section) => section.items) ?? [];
+  if (items.length === 0) {
+    for (let n = 1; n <= 47; n++) {
+      const pad = String(n).padStart(2, "0");
+      values[`1${pad}`] = n <= 12 ? "3" : "";
+      for (let term = 2; term <= terms; term++) values[`${term}${pad}`] = "";
+    }
+    values["147"] = "Practicing uppercase letters daily.";
+    return values;
+  }
+
+  items.forEach((item, index) => {
+    const code = item.printCode?.trim();
+    if (!code) return;
+    const named = code.toUpperCase();
+    if (isNamedPrintCode(named)) {
+      if (named === "ILP_GOAL") values.ILP_GOAL_TEXT = "Build letter-sound fluency in small group.";
+      if (named === "FALL_COMMENTS") {
+        values.FALL_COMMENTS = "Sofia is a joyful classmate and is growing as a reader.";
+      }
+      return;
+    }
+    const line = parsePrintLineNumber(code);
+    if (line == null) return;
+    for (let term = 0; term < terms; term++) {
+      const tag = termMergeTag(line, term);
+      if (term > 0) {
+        values[tag] = "";
+        continue;
+      }
+      values[tag] =
+        item.itemType === "comment"
+          ? index === 0
+            ? "Practicing uppercase letters daily."
+            : "Sample comment."
+          : sampleMarkCode(template!, item);
+    }
+  });
   return values;
 }

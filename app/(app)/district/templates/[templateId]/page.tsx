@@ -46,7 +46,7 @@ export default async function TemplateDetailPage({
   ]);
 
   return (
-    <div className="max-w-6xl">
+    <div className="max-w-[92rem]">
       <PageHeader
         eyebrow="Report card template"
         title={template.name}
@@ -148,31 +148,15 @@ export default async function TemplateDetailPage({
       </form>
 
       <div className="mb-10">
-        <DocumentHtmlEditor template={template} />
-      </div>
-
-      {template.html.trim() ? (
-        <p className="mb-10 text-sm text-muted-foreground">
-          This {localeLabel(template.locale).toLowerCase()} template prints from its own HTML. The
-          style panel below is unused until you clear the HTML.
-        </p>
-      ) : (
-        <div className="mb-10">
-          <h2 className="font-heading mb-3 text-xl">Report card preview</h2>
-          <p className="mb-4 text-sm text-muted-foreground">
-            Used when HTML is empty. Printed cards then use the built-in PDF.
-          </p>
-          <ReportCardPreview template={template} />
-        </div>
-      )}
-
+        <DocumentHtmlEditor template={template}>
       <p className="mb-3 text-sm text-muted-foreground">
         This card is for a {TERM_STRUCTURE_NAMES[template.termStructure].toLowerCase()} year.
         Line number 01 becomes{" "}
         <span className="font-mono">
           {previewTermMergeTags(1, template.termStructure).join(" ")}
         </span>
-        . School and year on the printed card come from the course.
+        . The HTML preview uses these line items. School and year on the printed card come from
+        the course.
       </p>
       <div className="space-y-6">
         {template.sections.map((section, index) => (
@@ -377,6 +361,18 @@ export default async function TemplateDetailPage({
           Add section
         </Button>
       </form>
+        </DocumentHtmlEditor>
+      </div>
+
+      {template.html.trim() ? null : (
+        <div className="mb-10">
+          <h2 className="font-heading mb-3 text-xl">Report card preview</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Used when HTML is empty. Printed cards then use the built-in PDF.
+          </p>
+          <ReportCardPreview template={template} />
+        </div>
+      )}
     </div>
   );
 }
