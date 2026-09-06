@@ -234,9 +234,10 @@ export default async function TemplateDetailPage({
                       <select
                         name="itemType"
                         defaultValue={item.itemType}
-                        className="h-8 w-28 shrink-0 rounded-lg border border-input bg-background px-2 text-sm"
+                        aria-label="Item type"
+                        className="h-8 w-20 shrink-0 appearance-none rounded-lg border border-input bg-background bg-none px-2 text-sm"
                       >
-                        <option value="mark">Mark (dropdown)</option>
+                        <option value="mark">Mark</option>
                         <option value="comment">Comment</option>
                       </select>
                       {item.itemType === "mark" ? (
