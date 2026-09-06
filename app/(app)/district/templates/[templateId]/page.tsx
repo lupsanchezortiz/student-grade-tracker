@@ -244,7 +244,7 @@ export default async function TemplateDetailPage({
                         <select
                           name="gradeScaleId"
                           defaultValue={item.gradeScaleId ?? template.gradeScaleId ?? scales[0]?.id}
-                          className="h-8 w-36 shrink-0 rounded-lg border border-input bg-background px-2 text-sm"
+                          className="h-8 w-36 shrink-0 appearance-none rounded-lg border border-input bg-background bg-none px-2 text-sm"
                           aria-label="Grade scale"
                         >
                           {scales.map((scale) => (
