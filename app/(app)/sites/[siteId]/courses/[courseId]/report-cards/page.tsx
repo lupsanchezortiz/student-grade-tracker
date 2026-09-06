@@ -33,7 +33,11 @@ export default async function SiteReportCardsPage({
       <PageHeader
         eyebrow={book.course.name}
         title={`${book.term.nameEn} report cards`}
-        description="Same marks, two languages. English and Spanish cards use the district template labels."
+        description={
+          book.course.template.htmlEn.trim()
+            ? "This course prints the district HTML document with merge tags filled from the gradebook (all terms)."
+            : "Same marks, two languages. English and Spanish cards use the district template labels."
+        }
         actions={
           <Link
             href={`/sites/${siteId}/courses/${courseId}/gradebook?term=${termId}`}
@@ -46,15 +50,15 @@ export default async function SiteReportCardsPage({
 
       {book.canPrint ? (
         <div className="mb-6 flex flex-wrap gap-2">
-          <Button nativeButton={false} render={<a href={href("en")} />}>
-            Download class (English)
+          <Button nativeButton={false} render={<a href={href("en")} target="_blank" />}>
+            {book.course.template.htmlEn.trim() ? "Print class (English)" : "Download class (English)"}
           </Button>
           <Button
             nativeButton={false}
             variant="outline"
-            render={<a href={href("es")} />}
+            render={<a href={href("es")} target="_blank" />}
           >
-            Descargar clase (español)
+            {book.course.template.htmlEn.trim() ? "Imprimir clase (español)" : "Descargar clase (español)"}
           </Button>
         </div>
       ) : (
@@ -86,15 +90,17 @@ export default async function SiteReportCardsPage({
                   <div className="flex gap-2">
                     <a
                       href={href("en", enrollment.studentId)}
+                      target="_blank"
                       className="text-sm text-primary hover:underline"
                     >
-                      English PDF
+                      {book.course.template.htmlEn.trim() ? "English" : "English PDF"}
                     </a>
                     <a
                       href={href("es", enrollment.studentId)}
+                      target="_blank"
                       className="text-sm text-primary hover:underline"
                     >
-                      PDF en español
+                      {book.course.template.htmlEn.trim() ? "Español" : "PDF en español"}
                     </a>
                   </div>
                 ) : null}

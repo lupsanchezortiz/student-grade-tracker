@@ -1,6 +1,6 @@
 # Northside Unified — student information
 
-A district student information system: the **district office** owns the school year, grade scales, and bilingual report-card templates. Each **school site** enrolls its own students, opens courses from those templates, and keeps a spreadsheet gradebook (students as rows, report-card items as columns). Teachers print English or Spanish PDF report cards from the same marks.
+A district student information system: the **district office** owns the school year, grade scales, and bilingual report-card templates. Each **school site** enrolls its own students, opens courses from those templates, and keeps a spreadsheet gradebook (students as rows, report-card items as columns). Teachers print English or Spanish cards from those marks — either a built-in PDF or a PowerSchool-style HTML document.
 
 ## Roles
 
@@ -25,13 +25,13 @@ With no Supabase env vars the app runs in **demo mode** (file-backed store in `.
 | --- | --- | --- |
 | `elena.voss@northside.edu` | `demo` | System admin |
 | `marco.santos@maple.northside.edu` | `demo` | Site admin, Maple Elementary |
-| `priya.shah@maple.northside.edu` | `demo` | Grade 3 teacher, Maple |
+| `priya.shah@maple.northside.edu` | `demo` | Kindergarten and Grade 3 teacher, Maple |
 | `lena.cho@cedar.northside.edu` | `demo` | Site admin, Cedar Ridge K–8 |
 
 ## Supabase (optional)
 
 1. Create a project and copy URL + anon key into `.env.local` (see `.env.example`).
-2. Run the SQL files in [`supabase/migrations`](supabase/migrations) in order (init, import/layout, then report-card styles).
+2. Run the SQL files in [`supabase/migrations`](supabase/migrations) in order.
 3. Run [`supabase/seed.sql`](supabase/seed.sql) for the district catalog.
 4. Create Auth users and set `profiles.is_system_admin` / `site_memberships` to match.
 
@@ -44,7 +44,20 @@ Without those env vars, demo mode stays on so you can use the product immediatel
 3. District assigns the template to grade levels and publishes it.
 4. The site creates a course for that grade and year — the template becomes the gradebook columns.
 5. The site enrolls students and grants teachers grade/print permission.
-6. Teachers enter marks; PDFs render in English or Spanish from those marks.
+6. Teachers enter marks and attendance; print uses the template HTML (all terms) or the built-in PDF if HTML is empty.
+
+## HTML documents (PowerSchool-style)
+
+System admins paste HTML on a template. Merge tags fill from the gradebook:
+
+- `{{STUDENT_NAME}}`, `{{STUDENT_ID}}`, `{{GRADE}}`, `{{SCHOOL}}`, `{{YEAR}}`, `{{TEACHER_NAME}}`
+- `{{101}}` / `{{201}}` / `{{301}}` — item print code `101` in terms 1–3
+- `{{1A}}` `{{1T}}` — absences and tardies
+- `{{ILP_GOAL_TEXT}}`, `{{FALL_COMMENTS}}`, `{{WINTER_COMMENTS}}`, `{{SPRING_COMMENTS}}`
+
+The demo includes a **Kindergarten standards report** built from a letter-size HTML file (print codes 101–147). Grade 3 still uses the built-in PDF unless you add HTML.
+
+Scripts and event handlers are stripped on save. Teachers do not edit HTML.
 
 ## CSV import
 
@@ -53,7 +66,7 @@ District **CSV import** (system admin) and site Students / Staff / Courses pages
 - Students: `site_code,student_number,first_name,last_name,preferred_name,grade,home_language`
 - Staff: `site_code,full_name,email,role`
 - Courses: `site_code,year,grade,name,teacher_email`
-- Template items (on the template): `section_en,section_es,title_en,title_es,type,scale,max_chars`
+- Template items (on the template): `section_en,section_es,title_en,title_es,type,scale,max_chars,print_code`
 
 A `scale` of `1-4` creates a 1 (lowest) through 4 (highest) scale. Comment rows such as `ILP Goal` can set `max_chars`.
 

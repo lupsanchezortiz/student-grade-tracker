@@ -350,6 +350,7 @@ export async function importTemplateItemsCsv(templateId: string, csv: string) {
         existing.titleEs = csvCell(row, "title_es") || existing.titleEs;
         existing.itemType = itemType;
         existing.maxChars = itemType === "comment" ? maxChars || 500 : undefined;
+        existing.printCode = csvCell(row, "print_code", "printcode") || existing.printCode;
         result.updated++;
       } else {
         const sort = Math.max(
@@ -364,6 +365,7 @@ export async function importTemplateItemsCsv(templateId: string, csv: string) {
           titleEs: csvCell(row, "title_es") || titleEn,
           itemType,
           maxChars: itemType === "comment" ? maxChars || 500 : undefined,
+          printCode: csvCell(row, "print_code", "printcode") || undefined,
         });
         result.created++;
       }

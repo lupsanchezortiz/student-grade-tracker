@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { normalizeLayout } from "@/lib/data/layout";
 import { createSeedState } from "@/lib/data/seed";
+import { ensureKindergarten } from "@/lib/documents/kindergarten";
 import type { StoreState } from "@/lib/types";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
@@ -19,6 +20,7 @@ export function loadState(): StoreState {
   try {
     if (existsSync(DATA_FILE)) {
       memory = migrateState(JSON.parse(readFileSync(DATA_FILE, "utf8")) as StoreState);
+      persist(memory);
       return memory;
     }
   } catch {
@@ -54,13 +56,17 @@ export function snapshot(): StoreState {
 }
 
 function migrateState(state: StoreState): StoreState {
+  if (!state.attendance) state.attendance = [];
   for (const template of state.templates) {
     template.layout = normalizeLayout(template.layout);
+    if (template.htmlEn == null) template.htmlEn = "";
+    if (template.htmlEs == null) template.htmlEs = "";
   }
   for (const item of state.items) {
     if (item.itemType === "comment" && !item.maxChars) {
       item.maxChars = 500;
     }
   }
+  ensureKindergarten(state);
   return state;
 }

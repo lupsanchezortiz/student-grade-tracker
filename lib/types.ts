@@ -76,6 +76,9 @@ export type ReportCardTemplate = {
   name: string;
   status: TemplateStatus;
   layout: TemplateLayout;
+  /** PowerSchool-style HTML. Empty uses the built-in PDF. */
+  htmlEn: string;
+  htmlEs: string;
 };
 
 export type TemplateGradeLevel = {
@@ -100,6 +103,8 @@ export type TemplateItem = {
   itemType: ItemType;
   /** Character limit for comment items. Ignored for marks. */
   maxChars?: number;
+  /** Term-1 merge code, e.g. "101" → {{101}} / {{201}} / {{301}}. Named codes: ILP_GOAL, FALL_COMMENTS. */
+  printCode?: string;
 };
 
 export type TypeSize = "sm" | "md" | "lg";
@@ -187,6 +192,14 @@ export type Grade = {
   comment: string;
 };
 
+export type AttendanceRecord = {
+  id: string;
+  enrollmentId: string;
+  termId: string;
+  absences: number;
+  tardies: number;
+};
+
 export type SessionUser = {
   id: string;
   email: string;
@@ -213,6 +226,7 @@ export type StoreState = {
   courseTeachers: CourseTeacher[];
   enrollments: Enrollment[];
   grades: Grade[];
+  attendance: AttendanceRecord[];
 };
 
 export type TemplateDetail = ReportCardTemplate & {
@@ -240,4 +254,5 @@ export type GradebookPayload = {
   canPrint: boolean;
   students: Student[];
   grades: Grade[];
+  attendance: AttendanceRecord[];
 };

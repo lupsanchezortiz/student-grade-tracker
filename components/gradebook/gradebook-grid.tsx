@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { saveGradeAction } from "@/lib/actions/mutations";
+import { saveAttendanceAction, saveGradeAction } from "@/lib/actions/mutations";
 import { studentName } from "@/lib/format";
 import type { GradebookPayload } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ function key(enrollmentId: string, itemId: string) {
 }
 
 export function GradebookGrid({ book }: { book: GradebookPayload }) {
-  const { course, term, terms, canEdit, canPrint, grades } = book;
+  const { course, term, terms, canEdit, canPrint, grades, attendance } = book;
   const [marks, setMarks] = useState<Record<CellKey, string>>(() => {
     const next: Record<CellKey, string> = {};
     for (const g of grades) {
@@ -35,6 +35,18 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
   const [openStudent, setOpenStudent] = useState<string | null>(
     course.enrollments[0]?.studentId ?? null,
   );
+  const [attendanceDraft, setAttendanceDraft] = useState<
+    Record<string, { absences: string; tardies: string }>
+  >(() => {
+    const next: Record<string, { absences: string; tardies: string }> = {};
+    for (const row of attendance) {
+      next[row.enrollmentId] = {
+        absences: String(row.absences),
+        tardies: String(row.tardies),
+      };
+    }
+    return next;
+  });
 
   const items = useMemo(
     () => course.template.sections.flatMap((s) => s.items.map((item) => ({ ...item, section: s }))),
@@ -108,6 +120,75 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
           </p>
         </div>
       </div>
+
+      {course.enrollments.length > 0 ? (
+        <div className="mb-4 overflow-hidden rounded-xl border border-border bg-card">
+          <p className="border-b border-border px-3 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Attendance this term
+          </p>
+          <ul className="divide-y divide-border text-sm">
+            {course.enrollments.map((enrollment) => {
+              const draft = attendanceDraft[enrollment.id] ?? { absences: "", tardies: "" };
+              return (
+                <li
+                  key={enrollment.id}
+                  className="flex flex-wrap items-center gap-3 px-3 py-2"
+                >
+                  <span className="min-w-40 font-medium">{studentName(enrollment.student)}</span>
+                  <label className="flex items-center gap-1.5 text-xs">
+                    Absences
+                    <input
+                      type="number"
+                      min={0}
+                      className="h-8 w-16 rounded-lg border border-input bg-background px-2"
+                      value={draft.absences}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setAttendanceDraft((prev) => ({
+                          ...prev,
+                          [enrollment.id]: { ...draft, absences: e.target.value },
+                        }))
+                      }
+                      onBlur={() =>
+                        void saveAttendanceAction({
+                          enrollmentId: enrollment.id,
+                          termId: term.id,
+                          absences: Number(draft.absences) || 0,
+                          tardies: Number(draft.tardies) || 0,
+                        })
+                      }
+                    />
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs">
+                    Tardies
+                    <input
+                      type="number"
+                      min={0}
+                      className="h-8 w-16 rounded-lg border border-input bg-background px-2"
+                      value={draft.tardies}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setAttendanceDraft((prev) => ({
+                          ...prev,
+                          [enrollment.id]: { ...draft, tardies: e.target.value },
+                        }))
+                      }
+                      onBlur={() =>
+                        void saveAttendanceAction({
+                          enrollmentId: enrollment.id,
+                          termId: term.id,
+                          absences: Number(draft.absences) || 0,
+                          tardies: Number(draft.tardies) || 0,
+                        })
+                      }
+                    />
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="mb-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
         {course.template.marks.map((mark) => (

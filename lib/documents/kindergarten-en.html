@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ELA Section – Report Card</title>
+  <style>
+    /* Simulate letter size page for preview (optional) */
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      font-size: 11px;
+      background: #f0f0f0;
+    }
+
+    .page {
+      width: 8.5in;
+      min-height: 11in;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 0.5in;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+	  page-break-after: always;
+    }
+
+	.page:last-child {
+	  page-break-after: auto; /* don’t add a blank page after the last one */
+	}
+
+	@media print {
+	  body {
+		margin: 0;
+		background: #ffffff;
+		box-shadow: none;
+	  }
+	  .page {
+		box-shadow: none;
+		}
+	}
+
+    .header {
+      width: 100%;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    h1 {
+      margin: 0 0 4px 0;
+      font-size: 13px;
+    }
+
+    h2 {
+      margin: 10px 0 6px 0;
+      font-size: 11px;
+    }
+
+    .grades {
+      margin-top: 10px;
+    }
+	
+	.flex-row {
+	  display: flex;
+	  gap: 20px;          /* spacing between tables */
+	  align-items: flex-start;
+	}
+
+    /* ---------- top row: info + key side by side ---------- */
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;                 /* space between the two blocks */
+      margin-bottom: 10px;
+    }
+
+    /* ---------- Info Table ---------- */
+    .info-grid {
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .info-grid td {
+      padding: 2px 6px 2px 0;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+
+    .info-label {
+      font-weight: bold;
+      text-align: right;
+      padding-right: 4px;
+      white-space: nowrap;
+    }
+
+    .info-value {
+      min-width: 120px;
+      display: inline-block;
+    }
+
+    .info-small {
+      min-width: 30px;
+      display: inline-block;
+    }
+
+    /* ---------- Key Container ----------*/
+    .key-container {
+      width: 300px;              /* adjust depending on your layout */
+      font-size: 10px;
+      margin-top: 0;
+    }
+
+    .key-title {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    .key-header {
+      background: #000;
+      color: #fff;
+      text-align: center;
+      padding: 2px 0;
+      font-size: 9px;
+      font-weight: bold;
+    }
+
+    table.key-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+
+    table.key-table td {
+      border: 1px solid #000;
+      padding: 2px 4px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .key-footer {
+      text-align: center;
+      font-size: 9px;
+      margin-top: 2px;
+      font-weight: bold;
+    }
+
+    /* ---------- Attendance table ---------- */
+    table.attendance {
+      width: 275px;
+      border-collapse: collapse;
+      table-layout: fixed;
+      text-align: left;
+      font-size: 11px;
+      margin-bottom: 12px;
+    }
+
+    table.attendance th,
+    table.attendance td {
+      border: 1px solid #000;
+      padding: 2px 4px;
+      vertical-align: middle;
+      text-align: left;
+      line-height: 14px;
+      height: 18px;
+    }
+
+    table.attendance thead th {
+	  background: #000;
+      color: #fff;
+      font-weight: bold;
+      text-align: left;
+    }
+
+    table.attendance .term {
+      width: 35px;
+      text-align: center;
+    }
+
+    /* ---------- Standards tables ---------- */
+    table.standards {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 11px;
+    }
+
+    table.standards th,
+    table.standards td {
+      border: 1px solid #000;
+      padding: 2px 4px;
+      vertical-align: middle;
+      line-height: 14px;
+      height: 18px;
+    }
+
+    table.standards thead th {
+      background: #000;
+      color: #fff;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    table.standards .category {
+      font-weight: bold;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    table.standards .standard {
+      text-align: left;
+    }
+
+    table.standards .term {
+      text-align: center;
+    }
+	
+	/* ---------- Compact SPECIAL SUBJECTS table ---------- */
+	table.specials-table,
+	table.honor-table {
+	  flex: 1;                /* each takes half of the row */
+	  width: 100%;            /* let flexbox control width */
+	  font-size: 10px;
+	  border-collapse: collapse;
+	  margin-bottom: 8px;
+	}
+
+	table.specials-table th,
+	table.specials-table td,
+	table.honor-table th,
+	table.honor-table td {
+	  border: 1px solid #000;
+	  padding: 2px 4px;
+	  line-height: 1.1;
+	  height: 16px;
+	}
+
+	table.specials-table thead th,
+	table.honor-table thead th {
+	  background: #000;
+	  color: #fff;
+	  font-weight: bold;
+	  text-align: center;
+	}
+
+	table.specials-table .category,
+	table.honor-table .category {
+	  text-align: left;
+	  font-weight: bold;
+	}
+	
+	/* ---------- Compact HONOR CODE table ---------- */
+	table.honor-table {
+	  width: 320px;               /* same width as specials */
+	  font-size: 10px;            /* slightly smaller text */
+	  border-collapse: collapse;
+	  margin-bottom: 8px;
+	}
+
+	table.honor-table th,
+	table.honor-table td {
+	  border: 1px solid #000;
+	  padding: 2px 4px;           /* tighter padding */
+	  line-height: 1.1;
+	  height: 16px;               /* shorter rows */
+	}
+
+	table.honor-table thead th {
+	  background: #000;
+	  color: #fff;
+	  font-weight: bold;
+	  text-align: center;
+	}
+
+	table.honor-table .category {
+	  font-weight: bold;
+	  text-align: left;
+	}
+
+	table.honor-table .standard {
+	  text-align: left;
+	}
+
+	
+	/* ----- ILP TABLE ----- */
+	table.ilp-table {
+	  width: 100%;
+	  border-collapse: collapse;
+	  font-size: 11px;
+	  margin-top: 10px;
+	}
+
+	/* Black header */
+	table.ilp-table thead th {
+	  background: #000;
+	  color: #fff;
+	  text-align: center;
+	  padding: 4px;
+	  font-weight: bold;
+	  border: 1px solid #000;
+	}
+
+	/* Goal row */
+	table.ilp-table .ilp-label {
+	  padding: 6px;
+	  border: 1px solid #000;
+	  background: #fff;
+	  text-align: left;
+	}
+
+	/* Left column F/W/S */
+	table.ilp-table .ilp-term {
+	  width: 40px;
+	  font-weight: bold;
+	  text-align: center;
+	  vertical-align: top;
+	  border: 1px solid #000;
+	  padding: 6px 0;
+	}
+
+	/* Right column (big writing area) */
+	table.ilp-table .ilp-box {
+	  height: 40px; /* adjust space */
+	  border: 1px solid #000;
+	  padding: 6px;
+	  vertical-align: top;
+	  background: #fff;
+	}
+
+	
+	/* ---------- Comment tables ---------- */
+	table.comments-table {
+	  width: 100%;
+	  border-collapse: collapse;
+	  margin-top: 8px;
+	  font-size: 11px;
+	}
+
+	table.comments-table th {
+	  background: #000;
+	  color: #fff;
+	  font-weight: bold;
+	  text-align: left;
+	  padding: 3px 6px;
+	  border: 1px solid #000;
+	}
+
+	table.comments-table td {
+	  border: 1px solid #000;
+	  border-top: none;           /* connects visually to header */
+	  height: 70px;               /* adjust for more/less space */
+	  padding: 4px 6px;
+	  vertical-align: top;
+	  white-space: pre-wrap;      /* keep line breaks from comments */
+	}
+
+	/* ---------- Signature table ---------- */
+	table.signature-table {
+	  width: 100%;
+	  margin-top: 16px;
+	  font-size: 10px;
+	  border-collapse: collapse;
+	}
+
+	table.signature-table td {
+	  padding: 4px 6px;
+	  white-space: nowrap;
+	}
+
+	.signature-line {
+	  display: inline-block;
+	  border-bottom: 1px solid #000;
+	  min-width: 140px;           /* length of the underline */
+	  margin: 0 4px;
+	}
+
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <h1>The Academies Charter Management Organization</h1>
+      <h1>Standards Based Report Card</h1>
+      <h2>Kindergarten</h2>
+    </div>
+
+    <div class="grades">
+
+      <!-- TOP ROW: INFO (LEFT) + KEY (RIGHT) -->
+      <div class="top-row">
+        <table class="info-grid">
+          <tr>
+            <td class="info-label">Student Name:</td>
+            <td class="info-value">{{STUDENT_NAME}}</td>
+          </tr>
+          <tr>
+            <td class="info-label">Student ID:</td>
+            <td class="info-value">
+              {{STUDENT_ID}}
+              &nbsp;&nbsp;
+              <span class="info-label">Grade:</span>
+              <span class="info-small">{{GRADE}}</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="info-label">School:</td>
+            <td class="info-value">{{SCHOOL}}</td>
+          </tr>
+          <tr>
+            <td class="info-label">Year:</td>
+            <td class="info-value">{{YEAR}}</td>
+          </tr>
+          <tr>
+            <td class="info-label">Teacher Name:</td>
+            <td class="info-value">{{TEACHER_NAME}}</td>
+          </tr>
+        </table>
+
+        <div class="key-container">
+          <div class="key-title">KEY</div>
+
+          <div class="key-header">
+            F = Fall &nbsp;&nbsp; W = Winter &nbsp;&nbsp; S = Spring
+          </div>
+
+          <table class="key-table">
+            <tr>
+              <td>4 = Above</td>
+              <td>E = Excellent</td>
+            </tr>
+            <tr>
+              <td>3 = Meets</td>
+              <td>S = Satisfactory</td>
+            </tr>
+            <tr>
+              <td>2 = Approaching</td>
+              <td>P = Progressing</td>
+            </tr>
+            <tr>
+              <td>1 = Below</td>
+              <td>N = Needs Improvement</td>
+            </tr>
+          </table>
+
+          <div class="key-footer">NYA = Not Yet Assessed</div>
+        </div>
+      </div>
+	
+	<br>
+
+      <!-- ELA SECTION -->
+		<table class="standards">
+		  <!-- 210px + 350px + 35 + 35 + 35 = 665px total for this table -->
+		  <colgroup>
+			<col class="col-category" style="width:190px;">
+			<col class="col-standard" style="width:370px;">
+			<col class="col-term" style="width:35px;">
+			<col class="col-term" style="width:35px;">
+			<col class="col-term" style="width:35px;">
+		  </colgroup>
+
+		  <thead>
+			<tr>
+			  <!-- This spans the 210px + 350px = 560px area -->
+			  <th class="category" colspan="2">ENGLISH LANGUAGE ARTS</th>
+			  <th class="term">T1</th>
+			  <th class="term">T2</th>
+			  <th class="term">T3</th>
+			</tr>
+		  </thead>
+
+		  <tbody>
+			<!-- READING FOUNDATIONAL SKILLS -->
+			<tr>
+			  <td class="category" rowspan="7">
+              READING FOUNDATIONAL<br>SKILLS
+            </td>
+				<td class="standard">Names uppercase letters</td>
+				<td class="term">{{101}}</td>
+				<td class="term">{{201}}</td>
+				<td class="term">{{301}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Names lowercase letters</td>
+				<td class="term">{{102}}</td>
+				<td class="term">{{202}}</td>
+				<td class="term">{{302}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Produces 1 to 1 letter sound correspondences for each letter</td>
+				<td class="term">{{103}}</td>
+				<td class="term">{{203}}</td>
+				<td class="term">{{303}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Identifies beginning, middle, ending sounds of a spoken word</td>
+				<td class="term">{{104}}</td>
+				<td class="term">{{204}}</td>
+				<td class="term">{{304}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Demonstrates understanding of rhyming words</td>
+				<td class="term">{{105}}</td>
+				<td class="term">{{205}}</td>
+				<td class="term">{{305}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Demonstrates understanding of blending and segmenting</td>
+				<td class="term">{{106}}</td>
+				<td class="term">{{206}}</td>
+				<td class="term">{{306}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Reads common high frequency words by sight</td>
+				<td class="term">{{107}}</td>
+				<td class="term">{{207}}</td>
+				<td class="term">{{307}}</td>
+			  </tr>
+
+			  <!-- ELA: LISTENING & SPEAKING (rows 08–10) -->
+			  <tr>
+				<td class="category" rowspan="3">LISTENING & SPEAKING</td>
+				<td class="standard">Asks and answers questions</td>
+				<td class="term">{{108}}</td>
+				<td class="term">{{208}}</td>
+				<td class="term">{{308}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Listens and takes turns while having a conversation</td>
+				<td class="term">{{109}}</td>
+				<td class="term">{{209}}</td>
+				<td class="term">{{309}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Describes people, places, things, and events</td>
+				<td class="term">{{110}}</td>
+				<td class="term">{{210}}</td>
+				<td class="term">{{310}}</td>
+			  </tr>
+
+			  <!-- ELA: WRITING (rows 11–15) -->
+			  <tr>
+				<td class="category" rowspan="5">WRITING</td>
+				<td class="standard">Focus</td>
+				<td class="term">{{111}}</td>
+				<td class="term">{{211}}</td>
+				<td class="term">{{311}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Organization</td>
+				<td class="term">{{112}}</td>
+				<td class="term">{{212}}</td>
+				<td class="term">{{312}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Elaboration</td>
+				<td class="term">{{113}}</td>
+				<td class="term">{{213}}</td>
+				<td class="term">{{313}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Language and Vocabulary</td>
+				<td class="term">{{114}}</td>
+				<td class="term">{{214}}</td>
+				<td class="term">{{314}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Conventions</td>
+				<td class="term">{{115}}</td>
+				<td class="term">{{215}}</td>
+				<td class="term">{{315}}</td>
+			  </tr>
+
+			  <!-- ELA: LANGUAGE CONVENTIONS (rows 16–19) -->
+			  <tr>
+				<td class="category" rowspan="4">LANGUAGE CONVENTIONS</td>
+				<td class="standard">Prints most upper and lower case letters</td>
+				<td class="term">{{116}}</td>
+				<td class="term">{{216}}</td>
+				<td class="term">{{316}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Spells simple words</td>
+				<td class="term">{{117}}</td>
+				<td class="term">{{217}}</td>
+				<td class="term">{{317}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Uses words correctly when speaking or writing</td>
+				<td class="term">{{118}}</td>
+				<td class="term">{{218}}</td>
+				<td class="term">{{318}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Uses known sight words and records sounds in words when writing</td>
+				<td class="term">{{119}}</td>
+				<td class="term">{{219}}</td>
+				<td class="term">{{319}}</td>
+			</tr>
+		  </tbody>
+		</table>
+		
+		<br>
+		
+		      <!-- MATH SECTION -->
+		<table class="standards">
+		  <!-- 210px + 350px + 35 + 35 + 35 = 665px total for this table -->
+		  <colgroup>
+			<col class="col-category" style="width:190px;">
+			<col class="col-standard" style="width:370px;">
+			<col class="col-term" style="width:35px;">
+			<col class="col-term" style="width:35px;">
+			<col class="col-term" style="width:35px;">
+		  </colgroup>
+
+		  <thead>
+			<tr>
+			  <!-- This spans the 210px + 350px = 560px area -->
+			  <th class="category" colspan="2">MATHIMATICS</th>
+			  <th class="term">T1</th>
+			  <th class="term">T2</th>
+			  <th class="term">T3</th>
+			</tr>
+		  </thead>
+
+		  <tbody>
+			<!-- NUMBERS -->
+			<tr>
+			  <tr>
+				<td class="category" rowspan="7">NUMBERS</td>
+				<td class="standard">Identifies numbers 0–20</td>
+				<td class="term">{{120}}</td>
+				<td class="term">{{220}}</td>
+				<td class="term">{{320}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Writes numbers 0–20</td>
+				<td class="term">{{121}}</td>
+				<td class="term">{{221}}</td>
+				<td class="term">{{321}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Counts to 100 by ones</td>
+				<td class="term">{{122}}</td>
+				<td class="term">{{222}}</td>
+				<td class="term">{{322}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Counts to 100 by tens</td>
+				<td class="term">{{123}}</td>
+				<td class="term">{{223}}</td>
+				<td class="term">{{323}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Counts objects with 1:1 correspondence</td>
+				<td class="term">{{124}}</td>
+				<td class="term">{{224}}</td>
+				<td class="term">{{324}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Understands teen numbers as 10 and some more</td>
+				<td class="term">{{125}}</td>
+				<td class="term">{{225}}</td>
+				<td class="term">{{325}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Compares numbers and groups</td>
+				<td class="term">{{126}}</td>
+				<td class="term">{{226}}</td>
+				<td class="term">{{326}}</td>
+			  </tr>
+
+			  <!-- OPERATIONS (indexes 27–31 → 127/227/327 ... 131/231/331) -->
+			  <tr>
+				<td class="category" rowspan="5">OPERATIONS</td>
+				<td class="standard">
+				  Understands that addition is putting together groups and adding to groups
+				</td>
+				<td class="term">{{127}}</td>
+				<td class="term">{{227}}</td>
+				<td class="term">{{327}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">
+				  Understands that subtraction is taking apart groups and taking away from groups
+				</td>
+				<td class="term">{{128}}</td>
+				<td class="term">{{228}}</td>
+				<td class="term">{{328}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">
+				  Decomposing numbers less than or equal to 10 in more than one way
+				</td>
+				<td class="term">{{129}}</td>
+				<td class="term">{{229}}</td>
+				<td class="term">{{329}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Shows understanding of how to make 10</td>
+				<td class="term">{{130}}</td>
+				<td class="term">{{230}}</td>
+				<td class="term">{{330}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Easily adds and subtracts within 5</td>
+				<td class="term">{{131}}</td>
+				<td class="term">{{231}}</td>
+				<td class="term">{{331}}</td>
+			  </tr>
+
+			  <!-- MEASUREMENT & DATA (indexes 32–33 → 132/232/332 ... 133/233/333) -->
+			  <tr>
+				<td class="category" rowspan="2">MEASUREMENT &amp; DATA</td>
+				<td class="standard">Compares two things</td>
+				<td class="term">{{132}}</td>
+				<td class="term">{{232}}</td>
+				<td class="term">{{332}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">
+				  Sorts objects into groups and counts numbers of objects in each category
+				</td>
+				<td class="term">{{133}}</td>
+				<td class="term">{{233}}</td>
+				<td class="term">{{333}}</td>
+			  </tr>
+
+			  <!-- GEOMETRY (indexes 34–36 → 134/234/334 ... 136/236/336) -->
+			  <tr>
+				<td class="category" rowspan="3">GEOMETRY</td>
+				<td class="standard">Identifies and describes shapes</td>
+				<td class="term">{{134}}</td>
+				<td class="term">{{234}}</td>
+				<td class="term">{{334}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">
+				  Analyzes and compares 2D and 3D shapes using positional words
+				</td>
+				<td class="term">{{135}}</td>
+				<td class="term">{{235}}</td>
+				<td class="term">{{335}}</td>
+			  </tr>
+			  <tr>
+				<td class="standard">Uses simple shapes to form larger shapes</td>
+				<td class="term">{{136}}</td>
+				<td class="term">{{236}}</td>
+				<td class="term">{{336}}</td>
+			</tr>
+		  </tbody>
+		</table>
+    </div> <!-- .grades -->
+  </div> <!-- .page -->
+    <div class="page">
+    <div class="header">
+      <h1>The Academies Charter Management Organization</h1>
+      <h1>Standards Based Report Card</h1>
+      <h2>Kindergarten – Page 2</h2>
+    </div>
+
+    <div class="grades">
+	<div class="flex-row">
+      <!-- SPECIALS: PE, ART, HISTORY, SPANISH, SCIENCE, MUSIC -->
+		<table class="specials-table">
+		  <colgroup>
+			<col style="width:300px;">
+			<col style="width:35px;">
+			<col style="width:35px;">
+			<col style="width:35px;">
+		  </colgroup>
+
+		  <thead>
+			<tr>
+			  <th class="category">SPECIAL SUBJECTS – PRODUCTION AND PARTICIPATION</th>
+			  <th class="term">T1</th>
+			  <th class="term">T2</th>
+			  <th class="term">T3</th>
+			</tr>
+		  </thead>
+
+		  <tbody>
+			<tr>
+			  <td class="category">PHYSICAL EDUCATION</td>
+			  <td class="term">{{137}}</td>
+			  <td class="term">{{237}}</td>
+			  <td class="term">{{337}}</td>
+			</tr>
+			<tr>
+			  <td class="category">ART</td>
+			  <td class="term">{{138}}</td>
+			  <td class="term">{{238}}</td>
+			  <td class="term">{{338}}</td>
+			</tr>
+			<tr>
+			  <td class="category">HISTORY AND SOCIAL STUDIES</td>
+			  <td class="term">{{139}}</td>
+			  <td class="term">{{239}}</td>
+			  <td class="term">{{339}}</td>
+			</tr>
+			<tr>
+			  <td class="category">SPANISH</td>
+			  <td class="term">{{140}}</td>
+			  <td class="term">{{240}}</td>
+			  <td class="term">{{340}}</td>
+			</tr>
+			<tr>
+			  <td class="category">SCIENCE</td>
+			  <td class="term">{{141}}</td>
+			  <td class="term">{{241}}</td>
+			  <td class="term">{{341}}</td>
+			</tr>
+			<tr>
+			  <td class="category">MUSIC</td>
+			  <td class="term">{{142}}</td>
+			  <td class="term">{{242}}</td>
+			  <td class="term">{{342}}</td>
+			</tr>
+		  </tbody>
+		</table>
+
+	  
+	  <br>
+
+      <!-- HONOR CODE / CARE 4 (compact) -->
+		<table class="honor-table">
+		  <colgroup>
+			<col style="width:130px;">  <!-- trait -->
+			<col style="width:150px;">  <!-- description -->
+			<col style="width:20px;">   <!-- T1 -->
+			<col style="width:20px;">   <!-- T2 -->
+			<col style="width:20px;">   <!-- T3 -->
+		  </colgroup>
+
+		  <thead>
+			<tr>
+			  <th class="category" colspan="2">HONOR CODE / CARE 4</th>
+			  <th class="term">T1</th>
+			  <th class="term">T2</th>
+			  <th class="term">T3</th>
+			</tr>
+		  </thead>
+
+		  <tbody>
+			<tr>
+			  <td class="category">Cooperation</td>
+			  <td class="standard">I will be a team player</td>
+			  <td class="term">{{143}}</td>
+			  <td class="term">{{243}}</td>
+			  <td class="term">{{343}}</td>
+			</tr>
+			<tr>
+			  <td class="category">Accountability</td>
+			  <td class="standard">I will do what is expected of me even when no one is watching</td>
+			  <td class="term">{{144}}</td>
+			  <td class="term">{{244}}</td>
+			  <td class="term">{{344}}</td>
+			</tr>
+			<tr>
+			  <td class="category">Respect</td>
+			  <td class="standard">I will value myself, others, and the school environment</td>
+			  <td class="term">{{145}}</td>
+			  <td class="term">{{245}}</td>
+			  <td class="term">{{345}}</td>
+			</tr>
+			<tr>
+			  <td class="category">Empathy</td>
+			  <td class="standard">I will be mindful of and show care for others</td>
+			  <td class="term">{{146}}</td>
+			  <td class="term">{{246}}</td>
+			  <td class="term">{{346}}</td>
+			</tr>
+		  </tbody>
+		</table>
+	</div>
+	  
+	  <br>
+
+      <!-- ATTENDANCE (moved down here, after Music/Science and Honor Code) -->
+      <table class="attendance">
+        <thead>
+          <tr>
+            <th>ATTENDANCE</th>
+            <th class="term">F</th>
+            <th class="term">W</th>
+            <th class="term">S</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Absences</td>
+            <td class="term">{{1A}}</td>
+            <td class="term">{{2A}}</td>
+            <td class="term">{{3A}}</td>
+          </tr>
+          <tr>
+            <td>Tardies</td>
+            <td class="term">{{1T}}</td>
+            <td class="term">{{2T}}</td>
+            <td class="term">{{3T}}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- INDIVIDUAL LEARNING PLAN -->
+      <table class="ilp-table">
+		  <thead>
+			<tr>
+			  <th colspan="2">INDIVIDUAL LEARNING PLAN</th>
+			</tr>
+		  </thead>
+
+		  <tbody>
+			<!-- Goal Row -->
+			<tr>
+			  <td class="ilp-label" colspan="2">
+				Goal: {{ILP_GOAL_TEXT}}
+			  </td>
+			</tr>
+
+			<!-- F -->
+			<tr>
+			  <td class="ilp-term">F</td>
+			  <td class="ilp-box">{{147}}</td>
+			</tr>
+
+			<!-- W -->
+			<tr>
+			  <td class="ilp-term">W</td>
+			  <td class="ilp-box">{{247}}</td>
+			</tr>
+
+			<!-- S -->
+			<tr>
+			  <td class="ilp-term">S</td>
+			  <td class="ilp-box">{{347}}</td>
+			</tr>
+		  </tbody>
+		</table>
+
+
+      <!-- TEACHER COMMENTS -->
+		<table class="comments-table">
+		  <tr>
+			<th>FALL TEACHER COMMENTS</th>
+		  </tr>
+		  <tr>
+			<td>{{FALL_COMMENTS}}</td>
+		  </tr>
+		</table>
+
+		<table class="comments-table">
+		  <tr>
+			<th>WINTER TEACHER COMMENTS</th>
+		  </tr>
+		  <tr>
+			<td>{{WINTER_COMMENTS}}</td>
+		  </tr>
+		</table>
+
+		<table class="comments-table">
+		  <tr>
+			<th>SPRING TEACHER COMMENTS</th>
+		  </tr>
+		  <tr>
+			<td>{{SPRING_COMMENTS}}</td>
+		  </tr>
+		</table>
+
+<!-- SIGNATURES -->
+		<table class="signature-table">
+		  <tr>
+			<td>
+			  Teacher Signature:
+			  <span class="signature-line">{{TEACHER_SIGNATURE}}</span>
+			</td>
+			<td>
+			  Date:
+			  <span class="signature-line">{{TEACHER_DATE}}</span>
+			</td>
+		  </tr>
+		  <tr>
+			<td>
+			  Parent/Guardian Signature:
+			  <span class="signature-line">{{PARENT_SIGNATURE}}</span>
+			</td>
+			<td>
+			  Date:
+			  <span class="signature-line">{{PARENT_DATE}}</span>
+			</td>
+		  </tr>
+		</table></span>
+        </div>
+      </div>
+
+    </div> <!-- .grades -->
+  </div> <!-- .page -->
+</body>
+</html>

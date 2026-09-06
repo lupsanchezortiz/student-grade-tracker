@@ -12,10 +12,10 @@ export const SAMPLE_COURSES = `site_code,year,grade,name,teacher_email
 MPL,2026–27,3,Grade 3 Homeroom — Lee,jordan.lee@maple.northside.edu
 `;
 
-export const SAMPLE_TEMPLATE_ITEMS = `section_en,section_es,title_en,title_es,type,scale,max_chars
-Language arts,Artes del lenguaje,Reading,Lectura,mark,1-4,
-Language arts,Artes del lenguaje,Writing,Escritura,mark,1-4,
-Teacher comments,Comentarios,ILP Goal,Meta del PIL,comment,,500
+export const SAMPLE_TEMPLATE_ITEMS = `section_en,section_es,title_en,title_es,type,scale,max_chars,print_code
+Language arts,Artes del lenguaje,Reading,Lectura,mark,1-4,,101
+Language arts,Artes del lenguaje,Writing,Escritura,mark,1-4,,102
+Teacher comments,Comentarios,ILP Goal,Meta del PIL,comment,,500,ILP_GOAL
 `;
 
 export const SAMPLES = {

@@ -25,8 +25,10 @@ import {
   updateStudent,
   updateTemplate,
   updateTerm,
+  updateTemplateHtml,
   updateTemplateLayout,
   updateYear,
+  upsertAttendance,
   upsertGrade,
 } from "@/lib/data/repo";
 import { runImport } from "@/lib/data/import";
@@ -166,6 +168,7 @@ export async function addItemAction(formData: FormData) {
     titleEs: str(formData, "titleEs"),
     itemType: str(formData, "itemType") as ItemType,
     maxChars,
+    printCode: str(formData, "printCode") || undefined,
   });
   revalidatePath("/district/templates");
 }
@@ -177,6 +180,7 @@ export async function updateItemAction(formData: FormData) {
     titleEs: str(formData, "titleEs"),
     itemType: str(formData, "itemType") as ItemType,
     maxChars,
+    printCode: str(formData, "printCode") || undefined,
   });
   revalidatePath("/district/templates");
 }
@@ -294,4 +298,19 @@ export async function importCsvAction(input: {
 export async function saveTemplateLayoutAction(templateId: string, layout: TemplateLayout) {
   await updateTemplateLayout(templateId, layout);
   revalidatePath(`/district/templates/${templateId}`);
+}
+
+export async function saveTemplateHtmlAction(templateId: string, htmlEn: string, htmlEs: string) {
+  await updateTemplateHtml(templateId, { htmlEn, htmlEs });
+  revalidatePath(`/district/templates/${templateId}`);
+}
+
+export async function saveAttendanceAction(input: {
+  enrollmentId: string;
+  termId: string;
+  absences: number;
+  tardies: number;
+}) {
+  await upsertAttendance(input);
+  revalidatePath("/courses");
 }

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { PageHeader } from "@/components/page-header";
+import { DocumentHtmlEditor } from "@/components/report-card/html-editor";
 import { ReportCardPreview } from "@/components/report-card/preview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -130,12 +131,22 @@ export default async function TemplateDetailPage({
       </form>
 
       <div className="mb-10">
-        <h2 className="font-heading mb-3 text-xl">Report card preview</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Set copy, type, colors, and column widths. Save to apply the same layout to printed PDFs.
-        </p>
-        <ReportCardPreview template={template} />
+        <DocumentHtmlEditor template={template} />
       </div>
+
+      {template.htmlEn.trim() ? (
+        <p className="mb-10 text-sm text-muted-foreground">
+          This template prints from HTML. The style panel below is unused until you clear the HTML.
+        </p>
+      ) : (
+        <div className="mb-10">
+          <h2 className="font-heading mb-3 text-xl">Report card preview</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Used when HTML is empty. Printed cards then use the built-in PDF.
+          </p>
+          <ReportCardPreview template={template} />
+        </div>
+      )}
 
       <div className="space-y-6">
         {template.sections.map((section, index) => (
@@ -202,6 +213,11 @@ export default async function TemplateDetailPage({
                       <option value="mark">Mark (dropdown)</option>
                       <option value="comment">Comment</option>
                     </select>
+                    <Input
+                      name="printCode"
+                      defaultValue={item.printCode ?? ""}
+                      placeholder="Print code (101 or ILP_GOAL)"
+                    />
                     {item.itemType === "comment" ? (
                       <Input
                         name="maxChars"
@@ -249,7 +265,7 @@ export default async function TemplateDetailPage({
               ))}
             </ul>
 
-            <form action={addItemAction} className="mt-3 grid gap-2 sm:grid-cols-5">
+            <form action={addItemAction} className="mt-3 grid gap-2 sm:grid-cols-6">
               <input type="hidden" name="sectionId" value={section.id} />
               <Input name="titleEn" placeholder="New item (English)" required />
               <Input name="titleEs" placeholder="Nuevo criterio" required />
@@ -261,6 +277,7 @@ export default async function TemplateDetailPage({
                 <option value="mark">Mark</option>
                 <option value="comment">Comment</option>
               </select>
+              <Input name="printCode" placeholder="Print code 101" />
               <Input name="maxChars" type="number" min={20} placeholder="Chars (comments)" />
               <Button type="submit" variant="secondary">
                 Add item

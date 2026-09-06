@@ -1,5 +1,12 @@
 import { renderToBuffer } from "@react-pdf/renderer";
-import { getGradebook, getReportCard } from "@/lib/data/repo";
+import { getGradebook, getPrintCards, getReportCard } from "@/lib/data/repo";
+import {
+  buildMergeValues,
+  combinePrintHtml,
+  hasHtmlTemplate,
+  htmlForLocale,
+  mergeDocument,
+} from "@/lib/documents/merge";
 import { ReportCardDocument, type ReportCardInput } from "@/lib/pdf/report-card";
 import type { Locale } from "@/lib/types";
 
@@ -7,7 +14,7 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const courseId = url.searchParams.get("courseId");
   const termId = url.searchParams.get("termId");
-  const studentId = url.searchParams.get("studentId");
+  const studentId = url.searchParams.get("studentId") ?? undefined;
   const locale = (url.searchParams.get("locale") === "es" ? "es" : "en") as Locale;
 
   if (!courseId || !termId) {
@@ -15,21 +22,59 @@ export async function GET(request: Request) {
   }
 
   try {
+    const preview = await getGradebook(courseId, termId);
+    if (hasHtmlTemplate(preview.course.template.htmlEn)) {
+      const { book, terms, cards } = await getPrintCards({
+        courseId,
+        termId,
+        studentId,
+        locale,
+      });
+      const source = htmlForLocale(book.course.template, locale);
+      const items = book.course.template.sections.flatMap((s) => s.items);
+      const documents = cards.map((card) =>
+        mergeDocument(
+          source,
+          buildMergeValues({
+            student: card.student,
+            course: card.course,
+            terms,
+            grades: card.grades,
+            attendance: card.attendance,
+            items,
+            enrollmentId: card.enrollmentId,
+            locale: card.locale,
+          }),
+        ),
+      );
+      const html = combinePrintHtml(documents);
+      const who =
+        cards.length === 1
+          ? `${cards[0].student.lastName}-${cards[0].student.firstName}`
+          : book.course.name.replace(/\s+/g, "-");
+      const filename = `report-card-${who}-${locale}.html`.replace(/[^\w.-]+/g, "_");
+      return new Response(html, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Disposition": `inline; filename="${filename}"`,
+        },
+      });
+    }
+
     const cards: ReportCardInput[] = [];
     if (studentId) {
       cards.push(await getReportCard({ courseId, studentId, termId, locale }));
     } else {
-      const book = await getGradebook(courseId, termId);
-      if (!book.canPrint) {
+      if (!preview.canPrint) {
         return new Response("You cannot print this class.", { status: 403 });
       }
-      for (const enrollment of book.course.enrollments) {
+      for (const enrollment of preview.course.enrollments) {
         cards.push({
           locale,
-          course: book.course,
-          term: book.term,
+          course: preview.course,
+          term: preview.term,
           student: enrollment.student,
-          grades: book.grades.filter((g) => g.enrollmentId === enrollment.id),
+          grades: preview.grades.filter((g) => g.enrollmentId === enrollment.id),
         });
       }
     }
@@ -48,7 +93,6 @@ export async function GET(request: Request) {
       /[^\w.-]+/g,
       "_",
     );
-
     return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",
@@ -56,7 +100,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not build PDF.";
+    const message = error instanceof Error ? error.message : "Could not build the report card.";
     return new Response(message, { status: 400 });
   }
 }

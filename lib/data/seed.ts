@@ -1,4 +1,5 @@
 import { defaultLayout } from "@/lib/data/layout";
+import { kindergartenCatalog, kindergartenDemoRoster } from "@/lib/documents/kindergarten";
 import { gradeLevelId, IDS } from "@/lib/ids";
 import type {
   AcademicYear,
@@ -208,10 +209,12 @@ const TEMPLATES: ReportCardTemplate[] = [
     name: "Elementary progress report",
     status: "published",
     layout: defaultLayout(),
+    htmlEn: "",
+    htmlEs: "",
   },
 ];
 
-const TEMPLATE_GRADE_LEVELS: TemplateGradeLevel[] = ["K", "1", "2", "3", "4", "5"].map(
+const TEMPLATE_GRADE_LEVELS: TemplateGradeLevel[] = ["1", "2", "3", "4", "5"].map(
   (code) => ({
     templateId: IDS.tmplElem,
     gradeLevelId: gradeLevelId(code),
@@ -500,6 +503,8 @@ const GRADES: Grade[] = [
 }));
 
 export function createSeedState(): StoreState {
+  const kinder = kindergartenCatalog();
+  const roster = kindergartenDemoRoster();
   return {
     sites: structuredClone(SITES),
     profiles: structuredClone(PROFILES),
@@ -507,17 +512,21 @@ export function createSeedState(): StoreState {
     years: structuredClone(YEARS),
     terms: structuredClone(TERMS),
     gradeLevels: structuredClone(GRADE_LEVELS),
-    scales: structuredClone(SCALES),
-    marks: structuredClone(MARKS),
-    templates: structuredClone(TEMPLATES),
-    templateGradeLevels: structuredClone(TEMPLATE_GRADE_LEVELS),
-    sections: structuredClone(SECTIONS),
-    items: structuredClone(ITEMS),
-    students: structuredClone(STUDENTS),
-    courses: structuredClone(COURSES),
-    courseTeachers: structuredClone(COURSE_TEACHERS),
-    enrollments: structuredClone(ENROLLMENTS),
-    grades: structuredClone(GRADES),
+    scales: structuredClone([...SCALES, kinder.scale]),
+    marks: structuredClone([...MARKS, ...kinder.marks]),
+    templates: structuredClone([...TEMPLATES, kinder.template]),
+    templateGradeLevels: structuredClone([
+      ...TEMPLATE_GRADE_LEVELS,
+      ...kinder.templateGradeLevels,
+    ]),
+    sections: structuredClone([...SECTIONS, ...kinder.sections]),
+    items: structuredClone([...ITEMS, ...kinder.items]),
+    students: structuredClone([...STUDENTS, ...roster.students]),
+    courses: structuredClone([...COURSES, roster.course]),
+    courseTeachers: structuredClone([...COURSE_TEACHERS, roster.teacher]),
+    enrollments: structuredClone([...ENROLLMENTS, ...roster.enrollments]),
+    grades: structuredClone([...GRADES, ...roster.grades]),
+    attendance: structuredClone(roster.attendance),
   };
 }
 
@@ -535,7 +544,7 @@ export const DEMO_ACCOUNTS = [
   {
     email: "priya.shah@maple.northside.edu",
     name: "Priya Shah",
-    role: "Teacher · Grade 3, Maple",
+    role: "Teacher · Kindergarten and Grade 3, Maple",
   },
   {
     email: "lena.cho@cedar.northside.edu",

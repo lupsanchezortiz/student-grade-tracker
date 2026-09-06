@@ -10,11 +10,13 @@ import {
 } from "@/lib/data/access";
 import { findTemplateForGrade, hydrateCourse, hydrateTemplate } from "@/lib/data/hydrate";
 import { defaultLayout, normalizeLayout } from "@/lib/data/layout";
+import { sanitizeTemplateHtml } from "@/lib/documents/sanitize";
 import type { TemplateLayout } from "@/lib/types";
 import { loadState, mutateState, resetState } from "@/lib/data/store";
 import { buildTerms } from "@/lib/data/terms";
 import type {
   AcademicYear,
+  AttendanceRecord,
   Course,
   Grade,
   GradeScale,
@@ -264,6 +266,8 @@ export async function createTemplate(input: {
       gradeScaleId: input.gradeScaleId,
       status: "draft" as const,
       layout: defaultLayout(),
+      htmlEn: "",
+      htmlEs: "",
     };
     state.templates.push(template);
     for (const gradeLevelId of input.gradeLevelIds) {
@@ -393,7 +397,7 @@ export async function moveSection(sectionId: string, direction: "up" | "down") {
 
 export async function addItem(
   sectionId: string,
-  input: { titleEn: string; titleEs: string; itemType: ItemType; maxChars?: number },
+  input: { titleEn: string; titleEs: string; itemType: ItemType; maxChars?: number; printCode?: string },
 ) {
   const user = await requireUser();
   assertDistrict(user);
@@ -410,6 +414,7 @@ export async function addItem(
       titleEs: input.titleEs.trim(),
       itemType: input.itemType,
       maxChars: input.itemType === "comment" ? input.maxChars || 500 : undefined,
+      printCode: input.printCode?.trim() || undefined,
     };
     state.items.push(item);
     return item;
@@ -418,7 +423,7 @@ export async function addItem(
 
 export async function updateItem(
   itemId: string,
-  input: { titleEn: string; titleEs: string; itemType: ItemType; maxChars?: number },
+  input: { titleEn: string; titleEs: string; itemType: ItemType; maxChars?: number; printCode?: string },
 ) {
   const user = await requireUser();
   assertDistrict(user);
@@ -429,7 +434,23 @@ export async function updateItem(
     item.titleEs = input.titleEs.trim();
     item.itemType = input.itemType;
     item.maxChars = input.itemType === "comment" ? input.maxChars || 500 : undefined;
+    item.printCode = input.printCode?.trim() || undefined;
     return item;
+  });
+}
+
+export async function updateTemplateHtml(
+  templateId: string,
+  input: { htmlEn: string; htmlEs: string },
+) {
+  const user = await requireUser();
+  assertDistrict(user);
+  return mutateState((state) => {
+    const template = state.templates.find((t) => t.id === templateId);
+    if (!template) throw new Error("Template not found.");
+    template.htmlEn = sanitizeTemplateHtml(input.htmlEn);
+    template.htmlEs = sanitizeTemplateHtml(input.htmlEs);
+    return hydrateTemplate(state, templateId)!;
   });
 }
 
@@ -736,6 +757,78 @@ export async function getGradebook(courseId: string, termId?: string) {
     grades: state.grades.filter(
       (g) => g.termId === term.id && enrollmentIds.has(g.enrollmentId),
     ),
+    attendance: (state.attendance ?? []).filter(
+      (a) => a.termId === term.id && enrollmentIds.has(a.enrollmentId),
+    ),
+  };
+}
+
+export async function upsertAttendance(input: {
+  enrollmentId: string;
+  termId: string;
+  absences: number;
+  tardies: number;
+}) {
+  const user = await requireUser();
+  return mutateState((state) => {
+    const enrollment = state.enrollments.find((e) => e.id === input.enrollmentId);
+    if (!enrollment) throw new Error("Enrollment not found.");
+    if (!canEditCourse(user, state, enrollment.courseId)) {
+      throw new Error("You cannot change attendance in this course.");
+    }
+    if (!state.attendance) state.attendance = [];
+    const absences = Math.max(0, Math.round(input.absences) || 0);
+    const tardies = Math.max(0, Math.round(input.tardies) || 0);
+    const existing = state.attendance.find(
+      (a) => a.enrollmentId === input.enrollmentId && a.termId === input.termId,
+    );
+    if (existing) {
+      existing.absences = absences;
+      existing.tardies = tardies;
+      return existing;
+    }
+    const row: AttendanceRecord = {
+      id: id(),
+      enrollmentId: input.enrollmentId,
+      termId: input.termId,
+      absences,
+      tardies,
+    };
+    state.attendance.push(row);
+    return row;
+  });
+}
+
+export async function getPrintCards(input: {
+  courseId: string;
+  termId?: string;
+  studentId?: string;
+  locale: Locale;
+}) {
+  const book = await getGradebook(input.courseId, input.termId);
+  if (!book.canPrint) throw new Error("You cannot print report cards for this course.");
+  const state = loadState();
+  const enrollmentIds = new Set(book.course.enrollments.map((e) => e.id));
+  const yearGrades = state.grades.filter((g) => enrollmentIds.has(g.enrollmentId));
+  const yearAttendance = (state.attendance ?? []).filter((a) =>
+    enrollmentIds.has(a.enrollmentId),
+  );
+  const enrollments = input.studentId
+    ? book.course.enrollments.filter((e) => e.studentId === input.studentId)
+    : book.course.enrollments;
+  if (enrollments.length === 0) throw new Error("No students to print.");
+  return {
+    book,
+    terms: book.terms,
+    cards: enrollments.map((enrollment) => ({
+      locale: input.locale,
+      course: book.course,
+      term: book.term,
+      student: enrollment.student,
+      enrollmentId: enrollment.id,
+      grades: yearGrades.filter((g) => g.enrollmentId === enrollment.id),
+      attendance: yearAttendance.filter((a) => a.enrollmentId === enrollment.id),
+    })),
   };
 }
 
