@@ -209,8 +209,8 @@ const TEMPLATES: ReportCardTemplate[] = [
     name: "Elementary progress report",
     status: "published",
     layout: defaultLayout(),
-    htmlEn: "",
-    htmlEs: "",
+    locale: "en",
+    html: "",
   },
 ];
 

@@ -1,21 +1,26 @@
 import { renderToBuffer } from "@react-pdf/renderer";
-import { getGradebook, getPrintCards, getReportCard } from "@/lib/data/repo";
+import {
+  getGradebook,
+  getPrintCards,
+  getReportCard,
+  listPrintDocuments,
+  resolvePrintTemplate,
+} from "@/lib/data/repo";
+import { hasHtmlTemplate } from "@/lib/data/template-doc";
 import {
   buildMergeValues,
   combinePrintHtml,
-  hasHtmlTemplate,
-  htmlForLocale,
   mergeDocument,
 } from "@/lib/documents/merge";
 import { ReportCardDocument, type ReportCardInput } from "@/lib/pdf/report-card";
-import type { Locale } from "@/lib/types";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const courseId = url.searchParams.get("courseId");
   const termId = url.searchParams.get("termId");
   const studentId = url.searchParams.get("studentId") ?? undefined;
-  const locale = (url.searchParams.get("locale") === "es" ? "es" : "en") as Locale;
+  const printTemplateId = url.searchParams.get("printTemplateId") ?? undefined;
+  const localeHint = url.searchParams.get("locale");
 
   if (!courseId || !termId) {
     return new Response("courseId and termId are required", { status: 400 });
@@ -23,27 +28,34 @@ export async function GET(request: Request) {
 
   try {
     const preview = await getGradebook(courseId, termId);
-    if (hasHtmlTemplate(preview.course.template.htmlEn)) {
+    let document = await resolvePrintTemplate(courseId, printTemplateId);
+    if (!printTemplateId && localeHint) {
+      const docs = await listPrintDocuments(courseId);
+      document = docs.find((d) => d.locale === localeHint) ?? document;
+    }
+    const locale = document.locale;
+
+    if (hasHtmlTemplate(document.html)) {
       const { book, terms, cards } = await getPrintCards({
         courseId,
         termId,
         studentId,
         locale,
+        printTemplateId: document.id,
       });
-      const source = htmlForLocale(book.course.template, locale);
       const items = book.course.template.sections.flatMap((s) => s.items);
       const documents = cards.map((card) =>
         mergeDocument(
-          source,
+          document.html,
           buildMergeValues({
             student: card.student,
-            course: card.course,
+            course: book.course,
             terms,
             grades: card.grades,
             attendance: card.attendance,
             items,
             enrollmentId: card.enrollmentId,
-            locale: card.locale,
+            locale,
           }),
         ),
       );
@@ -63,19 +75,29 @@ export async function GET(request: Request) {
 
     const cards: ReportCardInput[] = [];
     if (studentId) {
-      cards.push(await getReportCard({ courseId, studentId, termId, locale }));
+      cards.push(
+        await getReportCard({
+          courseId,
+          studentId,
+          termId,
+          locale,
+          printTemplateId: document.id,
+        }),
+      );
     } else {
       if (!preview.canPrint) {
         return new Response("You cannot print this class.", { status: 403 });
       }
       for (const enrollment of preview.course.enrollments) {
-        cards.push({
-          locale,
-          course: preview.course,
-          term: preview.term,
-          student: enrollment.student,
-          grades: preview.grades.filter((g) => g.enrollmentId === enrollment.id),
-        });
+        cards.push(
+          await getReportCard({
+            courseId,
+            studentId: enrollment.studentId,
+            termId,
+            locale,
+            printTemplateId: document.id,
+          }),
+        );
       }
     }
 

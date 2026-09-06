@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   addItemAction,
   addSectionAction,
+  cloneTemplateLanguageAction,
   deleteItemAction,
   deleteSectionAction,
   moveItemAction,
@@ -24,6 +25,7 @@ import {
   listScales,
   listYears,
 } from "@/lib/data/repo";
+import { itemTitle, localeLabel, sectionTitle } from "@/lib/data/template-doc";
 import { printCodePreview, previewTermMergeTags } from "@/lib/documents/print-code";
 
 export default async function TemplateDetailPage({
@@ -49,9 +51,29 @@ export default async function TemplateDetailPage({
       <PageHeader
         eyebrow="Report card template"
         title={template.name}
-        description="Sections and line items become gradebook columns. English and Spanish labels print on the PDF."
+        description={`${localeLabel(template.locale)} card. Line items become gradebook columns. Add another language as its own template so you can fit that HTML separately.`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <form action={cloneTemplateLanguageAction} className="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="id" value={template.id} />
+              <input
+                type="hidden"
+                name="name"
+                value={`${template.name.replace(/\s+\((English|español)\)$/i, "")} (${template.locale === "en" ? "español" : "English"})`}
+              />
+              <select
+                name="locale"
+                defaultValue={template.locale === "en" ? "es" : "en"}
+                className="h-8 rounded-lg border border-input bg-background px-2 text-sm"
+                aria-label="New language"
+              >
+                {template.locale !== "en" ? <option value="en">English</option> : null}
+                {template.locale !== "es" ? <option value="es">Spanish</option> : null}
+              </select>
+              <Button type="submit" variant="outline">
+                Create language version
+              </Button>
+            </form>
             <CsvImportDialog
               kind="template_items"
               templateId={template.id}
@@ -80,7 +102,18 @@ export default async function TemplateDetailPage({
           <Label>Name</Label>
           <Input name="name" defaultValue={template.name} required />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label>Language</Label>
+            <select
+              name="locale"
+              defaultValue={template.locale}
+              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+            >
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+            </select>
+          </div>
           <div className="space-y-1.5">
             <Label>School year</Label>
             <select
@@ -135,9 +168,10 @@ export default async function TemplateDetailPage({
         <DocumentHtmlEditor template={template} />
       </div>
 
-      {template.htmlEn.trim() ? (
+      {template.html.trim() ? (
         <p className="mb-10 text-sm text-muted-foreground">
-          This template prints from HTML. The style panel below is unused until you clear the HTML.
+          This {localeLabel(template.locale).toLowerCase()} template prints from its own HTML. The
+          style panel below is unused until you clear the HTML.
         </p>
       ) : (
         <div className="mb-10">
@@ -162,17 +196,16 @@ export default async function TemplateDetailPage({
             key={section.id}
             className="rounded-xl border border-border bg-card p-4"
           >
-            <form action={updateSectionAction} className="grid gap-3 sm:grid-cols-2">
+            <form action={updateSectionAction} className="grid gap-3 sm:grid-cols-[1fr_auto]">
               <input type="hidden" name="id" value={section.id} />
+              <input type="hidden" name="locale" value={template.locale} />
+              <input type="hidden" name="titleEn" value={section.titleEn} />
+              <input type="hidden" name="titleEs" value={section.titleEs} />
               <div className="space-y-1.5">
-                <Label>Section (English)</Label>
-                <Input name="titleEn" defaultValue={section.titleEn} required />
+                <Label>Section</Label>
+                <Input name="title" defaultValue={sectionTitle(section, template.locale)} required />
               </div>
-              <div className="space-y-1.5">
-                <Label>Sección (español)</Label>
-                <Input name="titleEs" defaultValue={section.titleEs} required />
-              </div>
-              <div className="sm:col-span-2">
+              <div className="flex items-end">
                 <Button type="submit" size="sm" variant="outline">
                   Save section
                 </Button>
@@ -217,15 +250,12 @@ export default async function TemplateDetailPage({
                       className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
                     >
                       <input type="hidden" name="id" value={item.id} />
+                      <input type="hidden" name="locale" value={template.locale} />
+                      <input type="hidden" name="titleEn" value={item.titleEn} />
+                      <input type="hidden" name="titleEs" value={item.titleEs} />
                       <Input
-                        name="titleEn"
-                        defaultValue={item.titleEn}
-                        required
-                        className="min-w-36 flex-1"
-                      />
-                      <Input
-                        name="titleEs"
-                        defaultValue={item.titleEs}
+                        name="title"
+                        defaultValue={itemTitle(item, template.locale)}
                         required
                         className="min-w-36 flex-1"
                       />
@@ -302,10 +332,10 @@ export default async function TemplateDetailPage({
               })}
             </ul>
 
-            <form action={addItemAction} className="mt-3 grid gap-2 sm:grid-cols-6">
+            <form action={addItemAction} className="mt-3 grid gap-2 sm:grid-cols-5">
               <input type="hidden" name="sectionId" value={section.id} />
-              <Input name="titleEn" placeholder="New item (English)" required />
-              <Input name="titleEs" placeholder="Nuevo criterio" required />
+              <input type="hidden" name="locale" value={template.locale} />
+              <Input name="title" placeholder="New line item" required />
               <select
                 name="itemType"
                 className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm"
@@ -326,11 +356,11 @@ export default async function TemplateDetailPage({
 
       <form
         action={addSectionAction}
-        className="mt-6 grid gap-2 rounded-xl border border-dashed border-border p-4 sm:grid-cols-3"
+        className="mt-6 grid gap-2 rounded-xl border border-dashed border-border p-4 sm:grid-cols-2"
       >
         <input type="hidden" name="templateId" value={template.id} />
-        <Input name="titleEn" placeholder="New section (English)" required />
-        <Input name="titleEs" placeholder="Nueva sección" required />
+        <input type="hidden" name="locale" value={template.locale} />
+        <Input name="title" placeholder="New section" required />
         <Button type="submit" variant="outline">
           Add section
         </Button>

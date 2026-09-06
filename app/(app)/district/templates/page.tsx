@@ -29,7 +29,7 @@ export default async function TemplatesPage() {
       <PageHeader
         eyebrow="District office"
         title="Report card templates"
-        description="Define what is graded. Publishing a template and assigning it to grade levels lets schools create gradebooks from it."
+        description="One language per template. Publish an English card for the gradebook, then clone a Spanish (or later) version with its own HTML."
         actions={
           years.length && scales.length ? (
             <Dialog>
@@ -44,6 +44,18 @@ export default async function TemplatesPage() {
                   <div className="space-y-1.5">
                     <Label htmlFor="name">Name</Label>
                     <Input id="name" name="name" required placeholder="Middle school progress report" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="locale">Language</Label>
+                    <select
+                      id="locale"
+                      name="locale"
+                      className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+                      defaultValue="en"
+                    >
+                      <option value="en">English</option>
+                      <option value="es">Spanish</option>
+                    </select>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="academicYearId">School year</Label>
@@ -109,7 +121,8 @@ export default async function TemplatesPage() {
               <div>
                 <p className="font-medium">{template.name}</p>
                 <p className="text-sm text-muted-foreground">
-                  {template.yearName} · {template.scaleName} · {template.itemCount} items
+                  {template.locale === "es" ? "Spanish" : "English"} · {template.yearName} ·{" "}
+                  {template.scaleName} · {template.itemCount} items
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">

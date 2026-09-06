@@ -88,10 +88,17 @@ export function findTemplateForGrade(
   const ids = state.templateGradeLevels
     .filter((x) => x.gradeLevelId === gradeLevelId)
     .map((x) => x.templateId);
-  return state.templates.find(
-    (t) =>
-      t.academicYearId === academicYearId &&
-      t.status === "published" &&
-      ids.includes(t.id),
-  );
+  return state.templates
+    .filter(
+      (t) =>
+        t.academicYearId === academicYearId &&
+        t.status === "published" &&
+        ids.includes(t.id),
+    )
+    .sort((a, b) => {
+      if (a.locale === b.locale) return 0;
+      if (a.locale === "en") return -1;
+      if (b.locale === "en") return 1;
+      return a.locale.localeCompare(b.locale);
+    })[0];
 }

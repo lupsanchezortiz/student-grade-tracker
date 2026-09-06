@@ -10,6 +10,7 @@ import {
 } from "@/lib/data/access";
 import { findTemplateForGrade, hydrateCourse, hydrateTemplate } from "@/lib/data/hydrate";
 import { defaultLayout, normalizeLayout } from "@/lib/data/layout";
+import { parseLocale, pairItemIds, siblingTemplates } from "@/lib/data/template-doc";
 import { normalizePrintCode } from "@/lib/documents/print-code";
 import { sanitizeTemplateHtml } from "@/lib/documents/sanitize";
 import type { TemplateLayout } from "@/lib/types";
@@ -256,6 +257,7 @@ export async function createTemplate(input: {
   academicYearId: string;
   gradeScaleId: string;
   gradeLevelIds: string[];
+  locale?: Locale;
 }) {
   const user = await requireUser();
   assertDistrict(user);
@@ -267,8 +269,8 @@ export async function createTemplate(input: {
       gradeScaleId: input.gradeScaleId,
       status: "draft" as const,
       layout: defaultLayout(),
-      htmlEn: "",
-      htmlEs: "",
+      locale: parseLocale(input.locale ?? "en"),
+      html: "",
     };
     state.templates.push(template);
     for (const gradeLevelId of input.gradeLevelIds) {
@@ -285,6 +287,7 @@ export async function updateTemplate(
     academicYearId: string;
     gradeScaleId: string;
     gradeLevelIds: string[];
+    locale?: Locale;
   },
 ) {
   const user = await requireUser();
@@ -301,6 +304,7 @@ export async function updateTemplate(
     template.name = input.name.trim();
     template.academicYearId = input.academicYearId;
     template.gradeScaleId = input.gradeScaleId;
+    if (input.locale) template.locale = parseLocale(input.locale);
     state.templateGradeLevels = state.templateGradeLevels.filter(
       (x) => x.templateId !== templateId,
     );
@@ -440,19 +444,86 @@ export async function updateItem(
   });
 }
 
-export async function updateTemplateHtml(
-  templateId: string,
-  input: { htmlEn: string; htmlEs: string },
-) {
+export async function updateTemplateHtml(templateId: string, html: string) {
   const user = await requireUser();
   assertDistrict(user);
   return mutateState((state) => {
     const template = state.templates.find((t) => t.id === templateId);
     if (!template) throw new Error("Template not found.");
-    template.htmlEn = sanitizeTemplateHtml(input.htmlEn);
-    template.htmlEs = sanitizeTemplateHtml(input.htmlEs);
+    template.html = sanitizeTemplateHtml(html);
     return hydrateTemplate(state, templateId)!;
   });
+}
+
+export async function cloneTemplateLanguage(
+  templateId: string,
+  input: { locale: Locale; name: string },
+) {
+  const user = await requireUser();
+  assertDistrict(user);
+  return mutateState((state) => {
+    const source = hydrateTemplate(state, templateId);
+    if (!source) throw new Error("Template not found.");
+    const locale = parseLocale(input.locale);
+    const already = siblingTemplates(state, templateId).some((t) => t.locale === locale);
+    if (source.locale === locale || already) {
+      throw new Error(`A ${locale === "es" ? "Spanish" : "English"} template already exists for this card.`);
+    }
+    const template = {
+      id: id(),
+      name: input.name.trim() || `${source.name} (${locale === "es" ? "español" : "English"})`,
+      academicYearId: source.academicYearId,
+      gradeScaleId: source.gradeScaleId,
+      status: "draft" as const,
+      layout: structuredClone(source.layout),
+      locale,
+      html: "",
+      sourceTemplateId: source.sourceTemplateId ?? source.id,
+    };
+    state.templates.push(template);
+    for (const gradeLevelId of source.gradeLevelIds) {
+      state.templateGradeLevels.push({ templateId: template.id, gradeLevelId });
+    }
+    for (const section of source.sections) {
+      const sectionId = id();
+      state.sections.push({
+        id: sectionId,
+        templateId: template.id,
+        sortOrder: section.sortOrder,
+        titleEn: section.titleEn,
+        titleEs: section.titleEs,
+      });
+      for (const item of section.items) {
+        state.items.push({
+          id: id(),
+          sectionId,
+          sortOrder: item.sortOrder,
+          titleEn: item.titleEn,
+          titleEs: item.titleEs,
+          itemType: item.itemType,
+          maxChars: item.maxChars,
+          printCode: item.printCode,
+        });
+      }
+    }
+    return hydrateTemplate(state, template.id)!;
+  });
+}
+
+export async function listPrintDocuments(courseId: string) {
+  const course = await getCourse(courseId);
+  const state = loadState();
+  const attached = course.template;
+  const extras = siblingTemplates(state, attached.id)
+    .filter((t) => t.status === "published")
+    .map((t) => hydrateTemplate(state, t.id))
+    .filter((t): t is NonNullable<typeof t> => Boolean(t));
+  const byLocale = new Map<Locale, typeof attached>();
+  byLocale.set(attached.locale, attached);
+  for (const extra of extras) {
+    if (!byLocale.has(extra.locale)) byLocale.set(extra.locale, extra);
+  }
+  return [...byLocale.values()];
 }
 
 export async function updateTemplateLayout(templateId: string, layout: TemplateLayout) {
@@ -800,11 +871,41 @@ export async function upsertAttendance(input: {
   });
 }
 
+export async function resolvePrintTemplate(courseId: string, printTemplateId?: string | null) {
+  const documents = await listPrintDocuments(courseId);
+  if (printTemplateId) {
+    const match = documents.find((t) => t.id === printTemplateId);
+    if (match) return match;
+  }
+  const course = await getCourse(courseId);
+  return documents.find((t) => t.id === course.templateId) ?? documents[0] ?? course.template;
+}
+
+function courseForPrintDocument(
+  course: Awaited<ReturnType<typeof getCourse>>,
+  document: NonNullable<ReturnType<typeof hydrateTemplate>>,
+  grades: Grade[],
+) {
+  if (document.id === course.template.id) {
+    return { course, grades, locale: document.locale };
+  }
+  const { courseToDocument } = pairItemIds(course.template, document);
+  return {
+    course: { ...course, template: document },
+    grades: grades.map((g) => ({
+      ...g,
+      templateItemId: courseToDocument.get(g.templateItemId) ?? g.templateItemId,
+    })),
+    locale: document.locale,
+  };
+}
+
 export async function getPrintCards(input: {
   courseId: string;
   termId?: string;
   studentId?: string;
   locale: Locale;
+  printTemplateId?: string;
 }) {
   const book = await getGradebook(input.courseId, input.termId);
   if (!book.canPrint) throw new Error("You cannot print report cards for this course.");
@@ -818,11 +919,13 @@ export async function getPrintCards(input: {
     ? book.course.enrollments.filter((e) => e.studentId === input.studentId)
     : book.course.enrollments;
   if (enrollments.length === 0) throw new Error("No students to print.");
+  const document = await resolvePrintTemplate(input.courseId, input.printTemplateId);
   return {
     book,
+    document,
     terms: book.terms,
     cards: enrollments.map((enrollment) => ({
-      locale: input.locale,
+      locale: document.locale,
       course: book.course,
       term: book.term,
       student: enrollment.student,
@@ -881,17 +984,24 @@ export async function getReportCard(input: {
   studentId: string;
   termId: string;
   locale: Locale;
+  printTemplateId?: string;
 }) {
   const book = await getGradebook(input.courseId, input.termId);
   if (!book.canPrint) throw new Error("You cannot print report cards for this course.");
   const enrollment = book.course.enrollments.find((e) => e.studentId === input.studentId);
   if (!enrollment) throw new Error("Student is not in this course.");
+  const document = await resolvePrintTemplate(input.courseId, input.printTemplateId);
+  const printed = courseForPrintDocument(
+    book.course,
+    document,
+    book.grades.filter((g) => g.enrollmentId === enrollment.id),
+  );
   return {
-    locale: input.locale,
-    course: book.course,
+    locale: printed.locale,
+    course: printed.course,
     term: book.term,
     student: enrollment.student,
-    grades: book.grades.filter((g) => g.enrollmentId === enrollment.id),
+    grades: printed.grades,
   };
 }
 

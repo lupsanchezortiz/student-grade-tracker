@@ -334,17 +334,24 @@ export function applyTemplateItemsImport(
 
   rows.forEach((row, index) => {
     const rowNo = index + 2;
-    const titleEn = csvCell(row, "list_item_eng", "title_en", "item", "title");
-    if (!titleEn) {
-      result.errors.push({ row: rowNo, message: "Need list_item_eng or title_en." });
+    const titleEnRaw = csvCell(row, "list_item_eng", "title_en", "item", "title");
+    const titleEsRaw = csvCell(row, "list_item_span", "title_es");
+    const locale = template.locale === "es" ? "es" : "en";
+    const title = locale === "es" ? titleEsRaw || titleEnRaw : titleEnRaw || titleEsRaw;
+    if (!title) {
+      result.errors.push({
+        row: rowNo,
+        message: locale === "es" ? "Need list_item_span or title_es." : "Need list_item_eng or title_en.",
+      });
       result.skipped++;
       return;
     }
+    const titleEn = titleEnRaw || title;
+    const titleEs = titleEsRaw || title;
     const sectionEnRaw = csvCell(row, "section_en", "section");
     const sectionEsRaw = csvCell(row, "section_es");
-    const sectionEn = sectionEnRaw || DEFAULT_SECTION_EN;
+    const sectionEn = sectionEnRaw || (locale === "es" ? sectionEsRaw : "") || DEFAULT_SECTION_EN;
     const sectionEs = sectionEsRaw || (sectionEnRaw ? sectionEn : DEFAULT_SECTION_ES);
-    const titleEs = csvCell(row, "list_item_span", "title_es") || titleEn;
     const itemType = parseItemType(csvCell(row, "mark/comment", "type", "item_type"));
     const printCode = normalizePrintCode(csvCell(row, "print_code", "printcode"));
     const maxCharsRaw = csvCell(row, "char", "max_chars", "max_characters");
@@ -356,14 +363,20 @@ export function applyTemplateItemsImport(
       ? state.items.find((item) => ids.has(item.sectionId) && printCodesMatch(item.printCode, printCode))
       : undefined;
 
-    let section = state.sections.find(
-      (s) => s.templateId === templateId && s.titleEn.toLowerCase() === sectionEn.toLowerCase(),
-    );
+    const sectionName = locale === "es" ? sectionEs : sectionEn;
+    let section = state.sections.find((s) => {
+      if (s.templateId !== templateId) return false;
+      const name = locale === "es" ? s.titleEs : s.titleEn;
+      return name.toLowerCase() === sectionName.toLowerCase();
+    });
 
     if (!existing && section) {
-      existing = state.items.find(
-        (item) => item.sectionId === section!.id && item.titleEn.toLowerCase() === titleEn.toLowerCase(),
-      );
+      const needle = title.toLowerCase();
+      existing = state.items.find((item) => {
+        if (item.sectionId !== section!.id) return false;
+        const name = locale === "es" ? item.titleEs : item.titleEn;
+        return name.toLowerCase() === needle;
+      });
     }
 
     if (existing) {

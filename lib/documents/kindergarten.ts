@@ -159,8 +159,8 @@ export function kindergartenCatalog(): {
       name: "Kindergarten standards report",
       status: "published",
       layout: defaultLayout(),
-      htmlEn: html,
-      htmlEs: html,
+      locale: "en",
+      html,
     },
     templateGradeLevels: [{ templateId: IDS.tmplKinder, gradeLevelId: gradeLevelId("K") }],
     sections: KINDER_SECTIONS.map((s, i) => ({
@@ -271,8 +271,9 @@ export function kindergartenDemoRoster(): {
 export function ensureKindergarten(state: StoreState) {
   if (!state.attendance) state.attendance = [];
   for (const template of state.templates) {
-    if (template.htmlEn == null) template.htmlEn = "";
-    if (template.htmlEs == null) template.htmlEs = "";
+    const legacy = template as typeof template & { htmlEn?: string; htmlEs?: string };
+    if (template.html == null) template.html = legacy.htmlEn ?? "";
+    if (!template.locale) template.locale = "en";
   }
   if (state.templates.some((t) => t.id === IDS.tmplKinder)) return;
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { saveAttendanceAction, saveGradeAction } from "@/lib/actions/mutations";
+import { itemTitle, sectionTitle } from "@/lib/data/template-doc";
 import { studentName } from "@/lib/format";
 import type { GradebookPayload } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -221,7 +222,7 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                       colSpan={section.items.length}
                       className="border-b border-l border-border px-2 py-1.5 text-center text-xs font-semibold tracking-wide uppercase"
                     >
-                      {section.titleEn}
+                      {sectionTitle(section, course.template.locale)}
                     </th>
                   ))}
                 </tr>
@@ -232,7 +233,7 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                         key={item.id}
                         className="max-w-28 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium leading-tight"
                       >
-                        {item.titleEn}
+                        {itemTitle(item, course.template.locale)}
                       </th>
                     )),
                   )}
@@ -315,14 +316,14 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                   {course.template.sections.map((section) => (
                     <div key={section.id} className="rounded-xl border border-border bg-card p-3">
                       <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                        {section.titleEn}
+                        {sectionTitle(section, course.template.locale)}
                       </p>
                       <ul className="space-y-2">
                         {section.items.map((item) => {
                           const k = key(enrollment.id, item.id);
                           return (
                             <li key={item.id} className="flex flex-col gap-1">
-                              <span className="text-sm">{item.titleEn}</span>
+                              <span className="text-sm">{itemTitle(item, course.template.locale)}</span>
                               {item.itemType === "comment" ? (
                                 <textarea
                                   disabled={!canEdit}

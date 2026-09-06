@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { getGradebook } from "@/lib/data/repo";
+import { getGradebook, listPrintDocuments } from "@/lib/data/repo";
+import { hasHtmlTemplate, localeLabel } from "@/lib/data/template-doc";
 import { studentName } from "@/lib/format";
 
 export default async function SiteReportCardsPage({
@@ -17,12 +18,13 @@ export default async function SiteReportCardsPage({
   const book = await getGradebook(courseId, term);
   if (book.course.siteId !== siteId) notFound();
   const termId = book.term.id;
+  const documents = await listPrintDocuments(courseId);
 
-  function href(locale: "en" | "es", studentId?: string) {
+  function href(printTemplateId: string, studentId?: string) {
     const q = new URLSearchParams({
       courseId,
       termId,
-      locale,
+      printTemplateId,
     });
     if (studentId) q.set("studentId", studentId);
     return `/api/report-cards?${q.toString()}`;
@@ -34,9 +36,9 @@ export default async function SiteReportCardsPage({
         eyebrow={book.course.name}
         title={`${book.term.nameEn} report cards`}
         description={
-          book.course.template.htmlEn.trim()
-            ? "This course prints the district HTML document with merge tags filled from the gradebook (all terms)."
-            : "Same marks, two languages. English and Spanish cards use the district template labels."
+          documents.some((d) => hasHtmlTemplate(d.html))
+            ? "Each language is its own template. Print uses that document’s HTML and this course’s marks."
+            : "Print uses the district template for that language. Add another language from the template editor."
         }
         actions={
           <Link
@@ -50,16 +52,18 @@ export default async function SiteReportCardsPage({
 
       {book.canPrint ? (
         <div className="mb-6 flex flex-wrap gap-2">
-          <Button nativeButton={false} render={<a href={href("en")} target="_blank" />}>
-            {book.course.template.htmlEn.trim() ? "Print class (English)" : "Download class (English)"}
-          </Button>
-          <Button
-            nativeButton={false}
-            variant="outline"
-            render={<a href={href("es")} target="_blank" />}
-          >
-            {book.course.template.htmlEn.trim() ? "Imprimir clase (español)" : "Descargar clase (español)"}
-          </Button>
+          {documents.map((doc) => (
+            <Button
+              key={doc.id}
+              nativeButton={false}
+              variant={doc.id === book.course.templateId ? "default" : "outline"}
+              render={<a href={href(doc.id)} target="_blank" />}
+            >
+              {hasHtmlTemplate(doc.html)
+                ? `Print class (${localeLabel(doc.locale)})`
+                : `Download class (${localeLabel(doc.locale)} PDF)`}
+            </Button>
+          ))}
         </div>
       ) : (
         <p className="mb-6 text-sm text-muted-foreground">
@@ -87,21 +91,19 @@ export default async function SiteReportCardsPage({
                   </p>
                 </div>
                 {book.canPrint ? (
-                  <div className="flex gap-2">
-                    <a
-                      href={href("en", enrollment.studentId)}
-                      target="_blank"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      {book.course.template.htmlEn.trim() ? "English" : "English PDF"}
-                    </a>
-                    <a
-                      href={href("es", enrollment.studentId)}
-                      target="_blank"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      {book.course.template.htmlEn.trim() ? "Español" : "PDF en español"}
-                    </a>
+                  <div className="flex flex-wrap gap-2">
+                    {documents.map((doc) => (
+                      <a
+                        key={doc.id}
+                        href={href(doc.id, enrollment.studentId)}
+                        target="_blank"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {hasHtmlTemplate(doc.html)
+                          ? localeLabel(doc.locale)
+                          : `${localeLabel(doc.locale)} PDF`}
+                      </a>
+                    ))}
                   </div>
                 ) : null}
               </li>

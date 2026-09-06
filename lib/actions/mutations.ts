@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   addItem,
   addSection,
@@ -9,6 +10,7 @@ import {
   createScale,
   createSite,
   createStudent,
+  cloneTemplateLanguage,
   createTemplate,
   createYear,
   deleteItem,
@@ -33,7 +35,19 @@ import {
 } from "@/lib/data/repo";
 import { runImport } from "@/lib/data/import";
 import type { ImportKind } from "@/lib/csv/samples";
+import { parseLocale } from "@/lib/data/template-doc";
 import type { ItemType, Locale, SiteRole, TemplateLayout, TermStructure } from "@/lib/types";
+
+function titlesFromForm(formData: FormData) {
+  const title = str(formData, "title");
+  const locale = parseLocale(str(formData, "locale"));
+  const titleEn = str(formData, "titleEn");
+  const titleEs = str(formData, "titleEs");
+  if (locale === "es") {
+    return { titleEn: titleEn || title, titleEs: title || titleEs };
+  }
+  return { titleEn: title || titleEn, titleEs: titleEs || title };
+}
 
 function str(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
@@ -113,6 +127,7 @@ export async function createTemplateAction(formData: FormData) {
     academicYearId: str(formData, "academicYearId"),
     gradeScaleId: str(formData, "gradeScaleId"),
     gradeLevelIds: formData.getAll("gradeLevelId").map(String),
+    locale: parseLocale(str(formData, "locale")),
   });
   revalidatePath("/district/templates");
 }
@@ -124,6 +139,7 @@ export async function updateTemplateAction(formData: FormData) {
     academicYearId: str(formData, "academicYearId"),
     gradeScaleId: str(formData, "gradeScaleId"),
     gradeLevelIds: formData.getAll("gradeLevelId").map(String),
+    locale: parseLocale(str(formData, "locale")),
   });
   revalidatePath(`/district/templates/${id}`);
 }
@@ -136,18 +152,12 @@ export async function publishTemplateAction(formData: FormData) {
 
 export async function addSectionAction(formData: FormData) {
   const templateId = str(formData, "templateId");
-  await addSection(templateId, {
-    titleEn: str(formData, "titleEn"),
-    titleEs: str(formData, "titleEs"),
-  });
+  await addSection(templateId, titlesFromForm(formData));
   revalidatePath(`/district/templates/${templateId}`);
 }
 
 export async function updateSectionAction(formData: FormData) {
-  await updateSection(str(formData, "id"), {
-    titleEn: str(formData, "titleEn"),
-    titleEs: str(formData, "titleEs"),
-  });
+  await updateSection(str(formData, "id"), titlesFromForm(formData));
   revalidatePath("/district/templates");
 }
 
@@ -164,8 +174,7 @@ export async function moveSectionAction(formData: FormData) {
 export async function addItemAction(formData: FormData) {
   const maxChars = Number(str(formData, "maxChars")) || undefined;
   await addItem(str(formData, "sectionId"), {
-    titleEn: str(formData, "titleEn"),
-    titleEs: str(formData, "titleEs"),
+    ...titlesFromForm(formData),
     itemType: str(formData, "itemType") as ItemType,
     maxChars,
     printCode: str(formData, "printCode") || undefined,
@@ -176,8 +185,7 @@ export async function addItemAction(formData: FormData) {
 export async function updateItemAction(formData: FormData) {
   const maxChars = Number(str(formData, "maxChars")) || undefined;
   await updateItem(str(formData, "id"), {
-    titleEn: str(formData, "titleEn"),
-    titleEs: str(formData, "titleEs"),
+    ...titlesFromForm(formData),
     itemType: str(formData, "itemType") as ItemType,
     maxChars,
     printCode: str(formData, "printCode") || undefined,
@@ -300,9 +308,19 @@ export async function saveTemplateLayoutAction(templateId: string, layout: Templ
   revalidatePath(`/district/templates/${templateId}`);
 }
 
-export async function saveTemplateHtmlAction(templateId: string, htmlEn: string, htmlEs: string) {
-  await updateTemplateHtml(templateId, { htmlEn, htmlEs });
+export async function saveTemplateHtmlAction(templateId: string, html: string) {
+  await updateTemplateHtml(templateId, html);
   revalidatePath(`/district/templates/${templateId}`);
+}
+
+export async function cloneTemplateLanguageAction(formData: FormData) {
+  const sourceId = str(formData, "id");
+  const created = await cloneTemplateLanguage(sourceId, {
+    locale: parseLocale(str(formData, "locale")),
+    name: str(formData, "name"),
+  });
+  revalidatePath("/district/templates");
+  redirect(`/district/templates/${created.id}`);
 }
 
 export async function saveAttendanceAction(input: {

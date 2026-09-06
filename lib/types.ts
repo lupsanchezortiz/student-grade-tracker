@@ -76,9 +76,12 @@ export type ReportCardTemplate = {
   name: string;
   status: TemplateStatus;
   layout: TemplateLayout;
-  /** PowerSchool-style HTML. Empty uses the built-in PDF. */
-  htmlEn: string;
-  htmlEs: string;
+  /** One language per template. Add another language by cloning. */
+  locale: Locale;
+  /** PowerSchool-style HTML for this language. Empty uses the built-in PDF. */
+  html: string;
+  /** When this card was cloned from another language. */
+  sourceTemplateId?: string;
 };
 
 export type TemplateGradeLevel = {

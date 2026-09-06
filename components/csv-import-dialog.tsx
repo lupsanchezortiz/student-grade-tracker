@@ -98,7 +98,9 @@ export function CsvImportDialog({
             semesters two terms, quarters four (
             <span className="font-mono">{"{{401}}"}</span>). Match existing items by line
             number, or by section + title. Type is <span className="font-mono">m</span> or{" "}
-            <span className="font-mono">c</span>.
+            <span className="font-mono">c</span>. This template’s language picks{" "}
+            <span className="font-mono">list_item_eng</span> or{" "}
+            <span className="font-mono">list_item_span</span>.
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">

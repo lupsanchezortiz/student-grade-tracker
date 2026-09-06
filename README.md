@@ -48,7 +48,9 @@ Without those env vars, demo mode stays on so you can use the product immediatel
 
 ## HTML documents (PowerSchool-style)
 
-System admins paste HTML on a template. Merge tags fill from the gradebook:
+Each template is **one language** with its own HTML. Build English first, then **Create language version** for Spanish (or later, another language). Teachers grade the course template; print can use a published sibling document and the same marks (matched by line number).
+
+System admins paste HTML on that language’s template. Merge tags fill from the gradebook:
 
 - `{{STUDENT_NAME}}`, `{{STUDENT_ID}}`, `{{GRADE}}`, `{{SCHOOL}}`, `{{YEAR}}`, `{{TEACHER_NAME}}`
 - `{{101}}` / `{{201}}` / `{{301}}` — line number `01` in terms 1–3 (quarters also use `{{401}}`)
@@ -73,6 +75,7 @@ District **CSV import** (system admin) and site Students / Staff / Courses pages
   `print_code` is the line number (`01`). HTML tags become `{{101}}` `{{201}}` `{{301}}` (and `{{401}}` for quarters).
   `mark/comment` is `m` or `c`. `grade_scale` of `1,2,3,4` or `1-4` sets a 1–4 scale; `Comment` is ignored.
   `char` applies to comments only. Missing section columns default to Line items / Criterios.
+  An English template reads `list_item_eng`; a Spanish template reads `list_item_span`.
 
 A `scale` of `1-4` or `1,2,3,4` creates a 1 (lowest) through 4 (highest) scale. Comment rows can set `char` / `max_chars`.
 

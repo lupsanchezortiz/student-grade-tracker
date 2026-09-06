@@ -3,26 +3,23 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { saveTemplateHtmlAction } from "@/lib/actions/mutations";
+import { localeLabel } from "@/lib/data/template-doc";
 import { mergeDocument, sampleMergeValues } from "@/lib/documents/merge";
 import { TAG_HELP } from "@/lib/documents/tags";
-import type { Locale, TemplateDetail } from "@/lib/types";
+import type { TemplateDetail } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 export function DocumentHtmlEditor({ template }: { template: TemplateDetail }) {
-  const [htmlEn, setHtmlEn] = useState(template.htmlEn ?? "");
-  const [htmlEs, setHtmlEs] = useState(template.htmlEs ?? "");
-  const [locale, setLocale] = useState<Locale>("en");
+  const [html, setHtml] = useState(template.html ?? "");
   const [saving, setSaving] = useState(false);
   const sample = useMemo(() => sampleMergeValues(), []);
-
-  const source = locale === "es" ? htmlEs || htmlEn : htmlEn;
-  const preview = source.trim() ? mergeDocument(source, sample) : "";
+  const preview = html.trim() ? mergeDocument(html, sample) : "";
 
   async function save() {
     setSaving(true);
     try {
-      await saveTemplateHtmlAction(template.id, htmlEn, htmlEs);
+      await saveTemplateHtmlAction(template.id, html);
       toast.success("HTML saved. Printed cards will use this document.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save HTML.");
@@ -32,37 +29,21 @@ export function DocumentHtmlEditor({ template }: { template: TemplateDetail }) {
   }
 
   function insert(tag: string) {
-    const setter = locale === "es" ? setHtmlEs : setHtmlEn;
-    setter((prev) => `${prev}${tag}`);
+    setHtml((prev) => `${prev}${tag}`);
   }
 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="font-heading text-xl">HTML document</h2>
+        <h2 className="font-heading text-xl">{localeLabel(template.locale)} HTML document</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Paste PowerSchool-style HTML. Merge tags fill from the gradebook. Scripts are stripped
-          on save. Leave blank to keep the built-in PDF.
+          Paste the {localeLabel(template.locale).toLowerCase()} layout and fit it to this language.
+          Merge tags fill from the gradebook. Scripts are stripped on save. Leave blank to keep the
+          built-in PDF. Another language is a separate template.
         </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant={locale === "en" ? "default" : "outline"}
-          onClick={() => setLocale("en")}
-        >
-          English HTML
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={locale === "es" ? "default" : "outline"}
-          onClick={() => setLocale("es")}
-        >
-          Spanish HTML
-        </Button>
         <Button type="button" size="sm" disabled={saving} onClick={() => void save()}>
           {saving ? "Saving…" : "Save HTML"}
         </Button>
@@ -88,12 +69,12 @@ export function DocumentHtmlEditor({ template }: { template: TemplateDetail }) {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="document-html">{locale === "es" ? "Spanish source" : "English source"}</Label>
+          <Label htmlFor="document-html">Source</Label>
           <textarea
             id="document-html"
             spellCheck={false}
-            value={locale === "es" ? htmlEs : htmlEn}
-            onChange={(e) => (locale === "es" ? setHtmlEs(e.target.value) : setHtmlEn(e.target.value))}
+            value={html}
+            onChange={(e) => setHtml(e.target.value)}
             className="min-h-[28rem] w-full rounded-xl border border-input bg-background p-3 font-mono text-xs leading-relaxed outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             placeholder="<!DOCTYPE html>…"
           />

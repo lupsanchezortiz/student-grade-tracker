@@ -29,13 +29,8 @@ export function mergeDocument(html: string, values: Record<string, string>): str
   return safe.replace(TAG, (_, key: string) => escapeHtml(values[key] ?? ""));
 }
 
-export function hasHtmlTemplate(htmlEn?: string | null): boolean {
-  return Boolean(htmlEn && htmlEn.trim());
-}
-
-export function htmlForLocale(template: { htmlEn: string; htmlEs: string }, locale: Locale): string {
-  if (locale === "es" && template.htmlEs.trim()) return template.htmlEs;
-  return template.htmlEn;
+export function hasHtmlTemplate(html?: string | null): boolean {
+  return Boolean(html && html.trim());
 }
 
 function numericPrintCode(code: string): number | null {
