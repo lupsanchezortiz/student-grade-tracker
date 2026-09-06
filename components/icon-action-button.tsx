@@ -1,12 +1,5 @@
-"use client";
-
 import { ChevronDown, ChevronUp, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 const ICONS = {
   save: Save,
@@ -30,23 +23,22 @@ export function IconActionButton({
 }: IconActionButtonProps) {
   const Icon = ICONS[action];
   return (
-    <Tooltip>
-      <TooltipTrigger
-        delay={200}
-        nativeButton={false}
-        render={<span className="inline-flex" />}
+    <span className="group relative inline-flex">
+      <Button
+        type="submit"
+        size="icon-sm"
+        variant={variant}
+        disabled={disabled}
+        aria-label={label}
       >
-        <Button
-          type="submit"
-          size="icon-sm"
-          variant={variant}
-          disabled={disabled}
-          aria-label={label}
-        >
-          <Icon />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
+        <Icon />
+      </Button>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-xs whitespace-nowrap text-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {label}
+      </span>
+    </span>
   );
 }
