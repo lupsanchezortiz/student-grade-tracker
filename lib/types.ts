@@ -71,8 +71,8 @@ export type GradeScaleMark = {
 
 export type ReportCardTemplate = {
   id: string;
-  academicYearId: string;
-  gradeScaleId: string;
+  /** Grading periods this HTML is built for. Must match the course’s school year. */
+  termStructure: TermStructure;
   name: string;
   status: TemplateStatus;
   layout: TemplateLayout;
@@ -82,6 +82,10 @@ export type ReportCardTemplate = {
   html: string;
   /** When this card was cloned from another language. */
   sourceTemplateId?: string;
+  /** @deprecated Year comes from the course. Kept for older demo stores. */
+  academicYearId?: string;
+  /** @deprecated Scale lives on each line item. Kept as a migrate fallback. */
+  gradeScaleId?: string;
 };
 
 export type TemplateGradeLevel = {
@@ -104,6 +108,8 @@ export type TemplateItem = {
   titleEn: string;
   titleEs: string;
   itemType: ItemType;
+  /** Scale for mark items. Ignored for comments. */
+  gradeScaleId?: string;
   /** Character limit for comment items. Ignored for marks. */
   maxChars?: number;
   /** Line number (`01`) or named code. HTML expands `01` to {{101}} / {{201}} / {{301}} (and {{401}} for quarters). */
@@ -233,9 +239,9 @@ export type StoreState = {
 };
 
 export type TemplateDetail = ReportCardTemplate & {
-  year: AcademicYear;
   scale: GradeScale;
   marks: GradeScaleMark[];
+  marksByScaleId: Record<string, GradeScaleMark[]>;
   gradeLevelIds: string[];
   sections: (TemplateSection & { items: TemplateItem[] })[];
 };

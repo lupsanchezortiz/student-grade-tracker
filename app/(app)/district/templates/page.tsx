@@ -13,13 +13,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createTemplateAction } from "@/lib/actions/mutations";
-import { listGradeLevels, listScales, listTemplates, listYears } from "@/lib/data/repo";
+import { listGradeLevels, listScales, listTemplates } from "@/lib/data/repo";
+import { TERM_STRUCTURE_NAMES } from "@/lib/data/terms";
 import { gradeLabel } from "@/lib/format";
 
 export default async function TemplatesPage() {
-  const [templates, years, scales, levels] = await Promise.all([
+  const [templates, scales, levels] = await Promise.all([
     listTemplates(),
-    listYears(),
     listScales(),
     listGradeLevels(),
   ]);
@@ -29,9 +29,9 @@ export default async function TemplatesPage() {
       <PageHeader
         eyebrow="District office"
         title="Report card templates"
-        description="One language per template. Publish an English card for the gradebook, then clone a Spanish (or later) version with its own HTML."
+        description="One language and one grading period (trimester, semester, or quarter) per template. School year prints from the course. Assign a scale on each line item."
         actions={
-          years.length && scales.length ? (
+          scales.length ? (
             <Dialog>
               <DialogTrigger className="inline-flex h-8 items-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground">
                 New template
@@ -58,33 +58,16 @@ export default async function TemplatesPage() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="academicYearId">School year</Label>
+                    <Label htmlFor="termStructure">Grading periods</Label>
                     <select
-                      id="academicYearId"
-                      name="academicYearId"
+                      id="termStructure"
+                      name="termStructure"
                       className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
-                      defaultValue={years[0]?.id}
+                      defaultValue="trimester"
                     >
-                      {years.map((y) => (
-                        <option key={y.id} value={y.id}>
-                          {y.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="gradeScaleId">Grade scale</Label>
-                    <select
-                      id="gradeScaleId"
-                      name="gradeScaleId"
-                      className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
-                      defaultValue={scales[0]?.id}
-                    >
-                      {scales.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
+                      <option value="trimester">Trimester (F / W / S)</option>
+                      <option value="semester">Semester</option>
+                      <option value="quarter">Quarter</option>
                     </select>
                   </div>
                   <fieldset className="space-y-2">
@@ -121,8 +104,8 @@ export default async function TemplatesPage() {
               <div>
                 <p className="font-medium">{template.name}</p>
                 <p className="text-sm text-muted-foreground">
-                  {template.locale === "es" ? "Spanish" : "English"} · {template.yearName} ·{" "}
-                  {template.scaleName} · {template.itemCount} items
+                  {template.locale === "es" ? "Spanish" : "English"} ·{" "}
+                  {TERM_STRUCTURE_NAMES[template.termStructure]} · {template.itemCount} items
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">

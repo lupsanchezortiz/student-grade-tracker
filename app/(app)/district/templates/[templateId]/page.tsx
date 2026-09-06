@@ -23,9 +23,9 @@ import {
   getTemplate,
   listGradeLevels,
   listScales,
-  listYears,
 } from "@/lib/data/repo";
 import { itemTitle, localeLabel, sectionTitle } from "@/lib/data/template-doc";
+import { TERM_STRUCTURE_NAMES } from "@/lib/data/terms";
 import { printCodePreview, previewTermMergeTags } from "@/lib/documents/print-code";
 
 export default async function TemplateDetailPage({
@@ -40,8 +40,7 @@ export default async function TemplateDetailPage({
   } catch {
     notFound();
   }
-  const [years, scales, levels] = await Promise.all([
-    listYears(),
+  const [scales, levels] = await Promise.all([
     listScales(),
     listGradeLevels(),
   ]);
@@ -51,7 +50,7 @@ export default async function TemplateDetailPage({
       <PageHeader
         eyebrow="Report card template"
         title={template.name}
-        description={`${localeLabel(template.locale)} card. Line items become gradebook columns. Add another language as its own template so you can fit that HTML separately.`}
+        description={`${localeLabel(template.locale)} ${TERM_STRUCTURE_NAMES[template.termStructure].toLowerCase()} card. School and year print from the course. A ${TERM_STRUCTURE_NAMES[template.termStructure].toLowerCase()} HTML layout will not apply to a year with different grading periods.`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <form action={cloneTemplateLanguageAction} className="flex flex-wrap items-center gap-2">
@@ -102,7 +101,7 @@ export default async function TemplateDetailPage({
           <Label>Name</Label>
           <Input name="name" defaultValue={template.name} required />
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Language</Label>
             <select
@@ -115,31 +114,15 @@ export default async function TemplateDetailPage({
             </select>
           </div>
           <div className="space-y-1.5">
-            <Label>School year</Label>
+            <Label>Grading periods</Label>
             <select
-              name="academicYearId"
-              defaultValue={template.academicYearId}
+              name="termStructure"
+              defaultValue={template.termStructure}
               className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
             >
-              {years.map((y) => (
-                <option key={y.id} value={y.id}>
-                  {y.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Grade scale</Label>
-            <select
-              name="gradeScaleId"
-              defaultValue={template.gradeScaleId}
-              className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
-            >
-              {scales.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
+              <option value="trimester">Trimester — tags 101 / 201 / 301</option>
+              <option value="semester">Semester — tags 101 / 201</option>
+              <option value="quarter">Quarter — tags 101 / 201 / 301 / 401</option>
             </select>
           </div>
         </div>
@@ -184,11 +167,12 @@ export default async function TemplateDetailPage({
       )}
 
       <p className="mb-3 text-sm text-muted-foreground">
+        This card is for a {TERM_STRUCTURE_NAMES[template.termStructure].toLowerCase()} year.
         Line number 01 becomes{" "}
         <span className="font-mono">
-          {previewTermMergeTags(1, template.year.termStructure).join(" ")}
-        </span>{" "}
-        in the HTML document for this {template.year.termStructure} year.
+          {previewTermMergeTags(1, template.termStructure).join(" ")}
+        </span>
+        . School and year on the printed card come from the course.
       </p>
       <div className="space-y-6">
         {template.sections.map((section, index) => (
@@ -241,7 +225,7 @@ export default async function TemplateDetailPage({
 
             <ul className="mt-4 space-y-2 border-t border-border pt-4">
               {section.items.map((item, itemIndex) => {
-                const tags = printCodePreview(item.printCode, template.year.termStructure);
+                const tags = printCodePreview(item.printCode, template.termStructure);
                 return (
                 <li key={item.id} className="rounded-lg bg-muted/40 p-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -267,6 +251,22 @@ export default async function TemplateDetailPage({
                         <option value="mark">Mark (dropdown)</option>
                         <option value="comment">Comment</option>
                       </select>
+                      {item.itemType === "mark" ? (
+                        <select
+                          name="gradeScaleId"
+                          defaultValue={item.gradeScaleId ?? template.gradeScaleId ?? scales[0]?.id}
+                          className="h-8 w-36 shrink-0 rounded-lg border border-input bg-background px-2 text-sm"
+                          aria-label="Grade scale"
+                        >
+                          {scales.map((scale) => (
+                            <option key={scale.id} value={scale.id}>
+                              {scale.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input type="hidden" name="gradeScaleId" value="" />
+                      )}
                       <label className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                         Line number
                         <Input
@@ -332,7 +332,7 @@ export default async function TemplateDetailPage({
               })}
             </ul>
 
-            <form action={addItemAction} className="mt-3 grid gap-2 sm:grid-cols-5">
+            <form action={addItemAction} className="mt-3 grid gap-2 sm:grid-cols-6">
               <input type="hidden" name="sectionId" value={section.id} />
               <input type="hidden" name="locale" value={template.locale} />
               <Input name="title" placeholder="New line item" required />
@@ -343,6 +343,18 @@ export default async function TemplateDetailPage({
               >
                 <option value="mark">Mark</option>
                 <option value="comment">Comment</option>
+              </select>
+              <select
+                name="gradeScaleId"
+                className="h-8 rounded-lg border border-input bg-background px-2.5 text-sm"
+                defaultValue={scales[0]?.id}
+                aria-label="Grade scale"
+              >
+                {scales.map((scale) => (
+                  <option key={scale.id} value={scale.id}>
+                    {scale.name}
+                  </option>
+                ))}
               </select>
               <Input name="printCode" placeholder="Line number 01" aria-label="Line number" />
               <Input name="maxChars" type="number" min={20} placeholder="Chars (comments)" />

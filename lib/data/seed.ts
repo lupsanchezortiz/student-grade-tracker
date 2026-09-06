@@ -204,8 +204,7 @@ const MARKS: GradeScaleMark[] = [
 const TEMPLATES: ReportCardTemplate[] = [
   {
     id: IDS.tmplElem,
-    academicYearId: IDS.year2627,
-    gradeScaleId: IDS.scaleEsnu,
+    termStructure: "trimester",
     name: "Elementary progress report",
     status: "published",
     layout: defaultLayout(),
@@ -369,6 +368,7 @@ const ITEMS: TemplateItem[] = SECTION_SEEDS.flatMap((s) =>
     titleEs: item.titleEs,
     itemType: item.itemType,
     maxChars: item.maxChars,
+    gradeScaleId: item.itemType === "mark" ? IDS.scaleEsnu : undefined,
   })),
 );
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { saveAttendanceAction, saveGradeAction } from "@/lib/actions/mutations";
-import { itemTitle, sectionTitle } from "@/lib/data/template-doc";
+import { itemTitle, marksForItem, sectionTitle } from "@/lib/data/template-doc";
 import { studentName } from "@/lib/format";
 import type { GradebookPayload } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -274,7 +274,7 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                               className="h-8 w-full min-w-16 rounded-md border-0 bg-transparent px-1 text-center font-mono text-sm outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:opacity-80"
                             >
                               <option value="">–</option>
-                              {course.template.marks.map((mark) => (
+                              {marksForItem(course.template, item).map((mark) => (
                                 <option key={mark.id} value={mark.id}>
                                   {mark.code}
                                 </option>
@@ -345,7 +345,7 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                                   className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
                                 >
                                   <option value="">Not marked</option>
-                                  {course.template.marks.map((mark) => (
+                                  {marksForItem(course.template, item).map((mark) => (
                                     <option key={mark.id} value={mark.id}>
                                       {mark.code} — {mark.labelEn}
                                     </option>

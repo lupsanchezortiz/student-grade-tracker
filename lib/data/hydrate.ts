@@ -1,9 +1,28 @@
 import { normalizeLayout } from "@/lib/data/layout";
+import { parseTermStructure } from "@/lib/data/terms";
 import type {
   CourseDetail,
+  GradeScaleMark,
   StoreState,
   TemplateDetail,
+  TemplateItem,
 } from "@/lib/types";
+
+function marksByScale(state: StoreState): Record<string, GradeScaleMark[]> {
+  const next: Record<string, GradeScaleMark[]> = {};
+  for (const mark of state.marks) {
+    (next[mark.scaleId] ??= []).push(mark);
+  }
+  for (const list of Object.values(next)) {
+    list.sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+  return next;
+}
+
+export function itemScaleId(item: TemplateItem, fallbackScaleId?: string) {
+  if (item.itemType !== "mark") return undefined;
+  return item.gradeScaleId || fallbackScaleId;
+}
 
 export function hydrateTemplate(
   state: StoreState,
@@ -11,12 +30,7 @@ export function hydrateTemplate(
 ): TemplateDetail | null {
   const template = state.templates.find((t) => t.id === templateId);
   if (!template) return null;
-  const year = state.years.find((y) => y.id === template.academicYearId);
-  const scale = state.scales.find((s) => s.id === template.gradeScaleId);
-  if (!year || !scale) return null;
-  const marks = state.marks
-    .filter((m) => m.scaleId === scale.id)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const byScale = marksByScale(state);
   const sections = state.sections
     .filter((s) => s.templateId === template.id)
     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -26,12 +40,32 @@ export function hydrateTemplate(
         .filter((i) => i.sectionId === section.id)
         .sort((a, b) => a.sortOrder - b.sortOrder),
     }));
+  const scaleIds = new Set<string>();
+  for (const section of sections) {
+    for (const item of section.items) {
+      const scaleId = itemScaleId(item, template.gradeScaleId);
+      if (scaleId) scaleIds.add(scaleId);
+    }
+  }
+  const scale =
+    state.scales.find((s) => scaleIds.has(s.id)) ??
+    state.scales.find((s) => s.id === template.gradeScaleId) ??
+    state.scales[0];
+  if (!scale) return null;
+  if (!scaleIds.size) scaleIds.add(scale.id);
+  const marks = [...scaleIds].flatMap((id) => byScale[id] ?? []);
+  const termStructure =
+    template.termStructure ??
+    parseTermStructure(
+      state.years.find((y) => y.id === template.academicYearId)?.termStructure ?? "trimester",
+    );
   return {
     ...template,
+    termStructure,
     layout: normalizeLayout(template.layout),
-    year,
     scale,
     marks,
+    marksByScaleId: byScale,
     gradeLevelIds: state.templateGradeLevels
       .filter((x) => x.templateId === template.id)
       .map((x) => x.gradeLevelId),
@@ -85,15 +119,17 @@ export function findTemplateForGrade(
   academicYearId: string,
   gradeLevelId: string,
 ) {
+  const year = state.years.find((y) => y.id === academicYearId);
+  if (!year) return undefined;
   const ids = state.templateGradeLevels
     .filter((x) => x.gradeLevelId === gradeLevelId)
     .map((x) => x.templateId);
   return state.templates
     .filter(
       (t) =>
-        t.academicYearId === academicYearId &&
         t.status === "published" &&
-        ids.includes(t.id),
+        ids.includes(t.id) &&
+        (t.termStructure ?? year.termStructure) === year.termStructure,
     )
     .sort((a, b) => {
       if (a.locale === b.locale) return 0;

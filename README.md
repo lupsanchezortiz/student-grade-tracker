@@ -39,10 +39,10 @@ Without those env vars, demo mode stays on so you can use the product immediatel
 
 ## How a gradebook is created
 
-1. District creates a school year and term structure.
-2. District creates a grade scale and a report-card template (what is graded, EN + ES).
-3. District assigns the template to grade levels and publishes it.
-4. The site creates a course for that grade and year — the template becomes the gradebook columns.
+1. District creates a school year and its grading periods (trimester, semester, or quarter).
+2. District creates grade scales and a report-card template for one language and one grading-period type. School year is not stored on the template — `{{SCHOOL}}` and `{{YEAR}}` fill from the course.
+3. District assigns the template to grade levels, sets a scale on each mark item, and publishes it.
+4. The site creates a course for that grade and year. Only a published card whose grading periods match the year will attach.
 5. The site enrolls students and grants teachers grade/print permission.
 6. Teachers enter marks and attendance; print uses the template HTML (all terms) or the built-in PDF if HTML is empty.
 
@@ -73,7 +73,7 @@ District **CSV import** (system admin) and site Students / Staff / Courses pages
 - Template items (on the template): `list_item_eng,list_item_span,grade_scale,mark/comment,print_code,char`
   Also accepts `section_en,section_es,title_en,title_es,type,scale,max_chars`.
   `print_code` is the line number (`01`). HTML tags become `{{101}}` `{{201}}` `{{301}}` (and `{{401}}` for quarters).
-  `mark/comment` is `m` or `c`. `grade_scale` of `1,2,3,4` or `1-4` sets a 1–4 scale; `Comment` is ignored.
+  `mark/comment` is `m` or `c`. `grade_scale` of `1,2,3,4` or `1-4` is stored on that line item; `Comment` is ignored.
   `char` applies to comments only. Missing section columns default to Line items / Criterios.
   An English template reads `list_item_eng`; a Spanish template reads `list_item_span`.
 

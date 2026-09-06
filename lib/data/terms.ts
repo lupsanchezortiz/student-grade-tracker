@@ -56,3 +56,19 @@ export function buildTerms(
 }
 
 export { STRUCTURES as TERM_STRUCTURE_LABELS };
+
+export const TERM_STRUCTURE_NAMES: Record<TermStructure, string> = {
+  semester: "Semester",
+  trimester: "Trimester",
+  quarter: "Quarter",
+};
+
+export function termStructureName(structure: TermStructure) {
+  return TERM_STRUCTURE_NAMES[structure] ?? structure;
+}
+
+export function parseTermStructure(raw: string): TermStructure {
+  const value = raw.trim().toLowerCase();
+  if (value === "semester" || value === "quarter") return value;
+  return "trimester";
+}

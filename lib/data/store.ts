@@ -3,6 +3,7 @@ import path from "path";
 import { normalizeLayout } from "@/lib/data/layout";
 import { createSeedState } from "@/lib/data/seed";
 import { parseLocale } from "@/lib/data/template-doc";
+import { parseTermStructure } from "@/lib/data/terms";
 import { ensureKindergarten } from "@/lib/documents/kindergarten";
 import type { ReportCardTemplate, StoreState } from "@/lib/types";
 
@@ -61,10 +62,19 @@ function migrateState(state: StoreState): StoreState {
   for (const template of state.templates) {
     template.layout = normalizeLayout(template.layout);
     migrateTemplateHtml(template);
+    if (!template.termStructure) {
+      const year = state.years.find((y) => y.id === template.academicYearId);
+      template.termStructure = parseTermStructure(year?.termStructure ?? "trimester");
+    }
   }
   for (const item of state.items) {
     if (item.itemType === "comment" && !item.maxChars) {
       item.maxChars = 500;
+    }
+    if (item.itemType === "mark" && !item.gradeScaleId) {
+      const section = state.sections.find((s) => s.id === item.sectionId);
+      const template = state.templates.find((t) => t.id === section?.templateId);
+      item.gradeScaleId = template?.gradeScaleId;
     }
   }
   ensureKindergarten(state);

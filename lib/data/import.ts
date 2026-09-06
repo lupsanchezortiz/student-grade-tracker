@@ -379,6 +379,7 @@ export function applyTemplateItemsImport(
       });
     }
 
+    let saved = existing;
     if (existing) {
       existing.titleEn = titleEn;
       existing.titleEs = titleEs || existing.titleEs;
@@ -416,14 +417,15 @@ export function applyTemplateItemsImport(
         printCode,
       };
       state.items.push(item);
+      saved = item;
       result.created++;
     }
 
     const scaleName = csvCell(row, "grade_scale", "scale");
     if (scaleName && itemType === "mark" && !isSkippedScale(scaleName)) {
       const scale = ensureScale(state, scaleName);
-      if (scale) template.gradeScaleId = scale.id;
-      else {
+      if (scale && saved) saved.gradeScaleId = scale.id;
+      else if (!scale) {
         result.errors.push({
           row: rowNo,
           message: `Unknown scale “${scaleName}”. Use 1-4, 1,2,3,4, or an existing scale name.`,

@@ -154,8 +154,7 @@ export function kindergartenCatalog(): {
     marks,
     template: {
       id: IDS.tmplKinder,
-      academicYearId: IDS.year2627,
-      gradeScaleId: IDS.scale431,
+      termStructure: "trimester",
       name: "Kindergarten standards report",
       status: "published",
       layout: defaultLayout(),
@@ -180,6 +179,7 @@ export function kindergartenCatalog(): {
         itemType: item.itemType,
         maxChars: item.maxChars,
         printCode: item.printCode,
+        gradeScaleId: item.itemType === "mark" ? IDS.scale431 : undefined,
       })),
     ),
   };

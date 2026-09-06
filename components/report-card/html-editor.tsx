@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { saveTemplateHtmlAction } from "@/lib/actions/mutations";
 import { localeLabel } from "@/lib/data/template-doc";
+import { TERM_STRUCTURE_NAMES } from "@/lib/data/terms";
 import { mergeDocument, sampleMergeValues } from "@/lib/documents/merge";
 import { TAG_HELP } from "@/lib/documents/tags";
 import type { TemplateDetail } from "@/lib/types";
@@ -37,9 +38,10 @@ export function DocumentHtmlEditor({ template }: { template: TemplateDetail }) {
       <div>
         <h2 className="font-heading text-xl">{localeLabel(template.locale)} HTML document</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Paste the {localeLabel(template.locale).toLowerCase()} layout and fit it to this language.
-          Merge tags fill from the gradebook. Scripts are stripped on save. Leave blank to keep the
-          built-in PDF. Another language is a separate template.
+          Paste the {localeLabel(template.locale).toLowerCase()} layout for a{" "}
+          {TERM_STRUCTURE_NAMES[template.termStructure].toLowerCase()} year. School and year tags
+          fill from the course. Merge tags fill from the gradebook. Scripts are stripped on save.
+          Leave blank to keep the built-in PDF. Another language is a separate template.
         </p>
       </div>
 

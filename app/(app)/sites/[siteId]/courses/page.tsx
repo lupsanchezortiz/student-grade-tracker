@@ -38,7 +38,7 @@ export default async function CoursesPage({
       <PageHeader
         eyebrow={site.name}
         title="Courses"
-        description="A course locks to the published district report card for that grade and year. That card is the gradebook."
+        description="A course uses the published card for that grade whose grading periods match the school year. School and year print from the course."
         actions={
           <>
           {canImport ? <CsvImportDialog kind="courses" siteId={siteId} /> : null}

@@ -1,4 +1,12 @@
-import type { Locale, StoreState, TemplateDetail, TemplateItem, TemplateSection } from "@/lib/types";
+import { itemScaleId } from "@/lib/data/hydrate";
+import type {
+  GradeScaleMark,
+  Locale,
+  StoreState,
+  TemplateDetail,
+  TemplateItem,
+  TemplateSection,
+} from "@/lib/types";
 
 export const LOCALE_LABELS: Record<Locale, string> = {
   en: "English",
@@ -45,11 +53,17 @@ export function siblingTemplates(state: StoreState, templateId: string) {
   if (!source) return [];
   return state.templates.filter((t) => {
     if (t.id === source.id) return false;
-    if (t.academicYearId !== source.academicYearId) return false;
+    if (t.termStructure !== source.termStructure) return false;
     if (t.sourceTemplateId === source.id || source.sourceTemplateId === t.id) return true;
     if (t.sourceTemplateId && t.sourceTemplateId === source.sourceTemplateId) return true;
     return templatesOverlap(state, source.id, t.id);
   });
+}
+
+export function marksForItem(template: TemplateDetail, item: TemplateItem): GradeScaleMark[] {
+  const scaleId = itemScaleId(item, template.gradeScaleId ?? template.scale.id);
+  if (!scaleId) return [];
+  return template.marksByScaleId[scaleId] ?? template.marks.filter((m) => m.scaleId === scaleId);
 }
 
 export function pairItemIds(course: TemplateDetail, document: TemplateDetail) {

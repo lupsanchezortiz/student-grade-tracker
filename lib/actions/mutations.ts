@@ -36,6 +36,7 @@ import {
 import { runImport } from "@/lib/data/import";
 import type { ImportKind } from "@/lib/csv/samples";
 import { parseLocale } from "@/lib/data/template-doc";
+import { parseTermStructure } from "@/lib/data/terms";
 import type { ItemType, Locale, SiteRole, TemplateLayout, TermStructure } from "@/lib/types";
 
 function titlesFromForm(formData: FormData) {
@@ -124,8 +125,7 @@ export async function createScaleAction(formData: FormData) {
 export async function createTemplateAction(formData: FormData) {
   await createTemplate({
     name: str(formData, "name"),
-    academicYearId: str(formData, "academicYearId"),
-    gradeScaleId: str(formData, "gradeScaleId"),
+    termStructure: parseTermStructure(str(formData, "termStructure")),
     gradeLevelIds: formData.getAll("gradeLevelId").map(String),
     locale: parseLocale(str(formData, "locale")),
   });
@@ -136,8 +136,7 @@ export async function updateTemplateAction(formData: FormData) {
   const id = str(formData, "id");
   await updateTemplate(id, {
     name: str(formData, "name"),
-    academicYearId: str(formData, "academicYearId"),
-    gradeScaleId: str(formData, "gradeScaleId"),
+    termStructure: parseTermStructure(str(formData, "termStructure")),
     gradeLevelIds: formData.getAll("gradeLevelId").map(String),
     locale: parseLocale(str(formData, "locale")),
   });
@@ -178,6 +177,7 @@ export async function addItemAction(formData: FormData) {
     itemType: str(formData, "itemType") as ItemType,
     maxChars,
     printCode: str(formData, "printCode") || undefined,
+    gradeScaleId: str(formData, "gradeScaleId") || undefined,
   });
   revalidatePath("/district/templates");
 }
@@ -189,6 +189,7 @@ export async function updateItemAction(formData: FormData) {
     itemType: str(formData, "itemType") as ItemType,
     maxChars,
     printCode: str(formData, "printCode") || undefined,
+    gradeScaleId: str(formData, "gradeScaleId") || undefined,
   });
   revalidatePath("/district/templates");
 }

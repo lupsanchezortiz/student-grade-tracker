@@ -11,6 +11,7 @@ import {
 import { findTemplateForGrade, hydrateCourse, hydrateTemplate } from "@/lib/data/hydrate";
 import { defaultLayout, normalizeLayout } from "@/lib/data/layout";
 import { parseLocale, pairItemIds, siblingTemplates } from "@/lib/data/template-doc";
+import { parseTermStructure, termStructureName } from "@/lib/data/terms";
 import { normalizePrintCode } from "@/lib/documents/print-code";
 import { sanitizeTemplateHtml } from "@/lib/documents/sanitize";
 import type { TemplateLayout } from "@/lib/types";
@@ -237,7 +238,7 @@ export async function listTemplates() {
       const detail = hydrateTemplate(state, t.id);
       return {
         ...t,
-        yearName: detail?.year.name ?? "",
+        termStructure: t.termStructure,
         scaleName: detail?.scale.name ?? "",
         gradeLevelIds: detail?.gradeLevelIds ?? [],
         itemCount: detail?.sections.reduce((n, s) => n + s.items.length, 0) ?? 0,
@@ -254,8 +255,7 @@ export async function getTemplate(templateId: string) {
 
 export async function createTemplate(input: {
   name: string;
-  academicYearId: string;
-  gradeScaleId: string;
+  termStructure: TermStructure;
   gradeLevelIds: string[];
   locale?: Locale;
 }) {
@@ -265,8 +265,7 @@ export async function createTemplate(input: {
     const template = {
       id: id(),
       name: input.name.trim(),
-      academicYearId: input.academicYearId,
-      gradeScaleId: input.gradeScaleId,
+      termStructure: parseTermStructure(input.termStructure),
       status: "draft" as const,
       layout: defaultLayout(),
       locale: parseLocale(input.locale ?? "en"),
@@ -284,8 +283,7 @@ export async function updateTemplate(
   templateId: string,
   input: {
     name: string;
-    academicYearId: string;
-    gradeScaleId: string;
+    termStructure: TermStructure;
     gradeLevelIds: string[];
     locale?: Locale;
   },
@@ -295,15 +293,17 @@ export async function updateTemplate(
   return mutateState((state) => {
     const template = state.templates.find((t) => t.id === templateId);
     if (!template) throw new Error("Template not found.");
-    if (template.status === "published" && input.gradeScaleId !== template.gradeScaleId) {
+    const nextStructure = parseTermStructure(input.termStructure);
+    if (template.status === "published" && nextStructure !== template.termStructure) {
       const used = state.courses.some((c) => c.templateId === templateId);
       if (used) {
-        throw new Error("This template already has gradebooks. Keep the same grade scale.");
+        throw new Error(
+          "This template already has gradebooks. Keep the same grading periods (trimester, semester, or quarter).",
+        );
       }
     }
     template.name = input.name.trim();
-    template.academicYearId = input.academicYearId;
-    template.gradeScaleId = input.gradeScaleId;
+    template.termStructure = nextStructure;
     if (input.locale) template.locale = parseLocale(input.locale);
     state.templateGradeLevels = state.templateGradeLevels.filter(
       (x) => x.templateId !== templateId,
@@ -402,7 +402,14 @@ export async function moveSection(sectionId: string, direction: "up" | "down") {
 
 export async function addItem(
   sectionId: string,
-  input: { titleEn: string; titleEs: string; itemType: ItemType; maxChars?: number; printCode?: string },
+  input: {
+    titleEn: string;
+    titleEs: string;
+    itemType: ItemType;
+    maxChars?: number;
+    printCode?: string;
+    gradeScaleId?: string;
+  },
 ) {
   const user = await requireUser();
   assertDistrict(user);
@@ -420,6 +427,7 @@ export async function addItem(
       itemType: input.itemType,
       maxChars: input.itemType === "comment" ? input.maxChars || 500 : undefined,
       printCode: normalizePrintCode(input.printCode),
+      gradeScaleId: input.itemType === "mark" ? input.gradeScaleId || undefined : undefined,
     };
     state.items.push(item);
     return item;
@@ -428,7 +436,14 @@ export async function addItem(
 
 export async function updateItem(
   itemId: string,
-  input: { titleEn: string; titleEs: string; itemType: ItemType; maxChars?: number; printCode?: string },
+  input: {
+    titleEn: string;
+    titleEs: string;
+    itemType: ItemType;
+    maxChars?: number;
+    printCode?: string;
+    gradeScaleId?: string;
+  },
 ) {
   const user = await requireUser();
   assertDistrict(user);
@@ -440,6 +455,7 @@ export async function updateItem(
     item.itemType = input.itemType;
     item.maxChars = input.itemType === "comment" ? input.maxChars || 500 : undefined;
     item.printCode = normalizePrintCode(input.printCode);
+    item.gradeScaleId = input.itemType === "mark" ? input.gradeScaleId || undefined : undefined;
     return item;
   });
 }
@@ -472,8 +488,7 @@ export async function cloneTemplateLanguage(
     const template = {
       id: id(),
       name: input.name.trim() || `${source.name} (${locale === "es" ? "español" : "English"})`,
-      academicYearId: source.academicYearId,
-      gradeScaleId: source.gradeScaleId,
+      termStructure: source.termStructure,
       status: "draft" as const,
       layout: structuredClone(source.layout),
       locale,
@@ -503,6 +518,7 @@ export async function cloneTemplateLanguage(
           itemType: item.itemType,
           maxChars: item.maxChars,
           printCode: item.printCode,
+          gradeScaleId: item.gradeScaleId,
         });
       }
     }
@@ -732,8 +748,10 @@ export async function createCourse(
       input.gradeLevelId,
     );
     if (!template) {
+      const year = state.years.find((y) => y.id === input.academicYearId);
+      const periods = year ? termStructureName(year.termStructure).toLowerCase() : "this";
       throw new Error(
-        "District has not published a report card for this grade and year. Ask the district office to assign a template.",
+        `District has not published a ${periods} report card for this grade. The card’s grading periods must match the school year.`,
       );
     }
     const course: Course = {
