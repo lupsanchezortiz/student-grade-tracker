@@ -14,7 +14,6 @@ import {
 } from "@/lib/data/layout";
 import type { Locale, TemplateDetail, TemplateLayout, TypeSize } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -93,7 +92,7 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,22rem)_1fr]">
-      <div className="space-y-5 rounded-xl border border-border bg-card p-4 text-sm">
+      <div className="space-y-5 rounded-xl border border-border bg-card p-4 text-sm xl:sticky xl:top-4">
         <div>
           <h2 className="font-heading text-lg">Style</h2>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -104,24 +103,28 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
         <fieldset className="space-y-2">
           <legend className="font-medium">Copy</legend>
           <CopyField
+            id="style-title-en"
             label="Title (English)"
             value={layout.copy.titleEn}
             placeholder="Progress report"
             onChange={(titleEn) => patch({ copy: { titleEn } })}
           />
           <CopyField
+            id="style-title-es"
             label="Title (Spanish)"
             value={layout.copy.titleEs}
             placeholder="Informe de progreso"
             onChange={(titleEs) => patch({ copy: { titleEs } })}
           />
           <CopyField
+            id="style-footer-en"
             label="Footer (English)"
             value={layout.copy.footerEn}
             placeholder="Generated from the Northside gradebook"
             onChange={(footerEn) => patch({ copy: { footerEn } })}
           />
           <CopyField
+            id="style-footer-es"
             label="Footer (Spanish)"
             value={layout.copy.footerEs}
             placeholder="Generado desde el libro de calificaciones de Northside"
@@ -132,11 +135,13 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
         <fieldset className="space-y-2">
           <legend className="font-medium">Type</legend>
           <SizeSelect
+            id="style-title-size"
             label="Title size"
             value={layout.type.titleSize}
             onChange={(titleSize) => patch({ type: { titleSize } })}
           />
           <SizeSelect
+            id="style-body-size"
             label="Body size"
             value={layout.type.bodySize}
             onChange={(bodySize) => patch({ type: { bodySize } })}
@@ -179,6 +184,7 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
               Criterion {table.criterionWidth}% · Mark {markPct}%
             </span>
             <input
+              id="style-criterion-width"
               type="range"
               min={50}
               max={85}
@@ -213,6 +219,7 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
           </label>
           <label className="flex items-center gap-2">
             <input
+              id="style-outer-border"
               type="checkbox"
               checked={table.showOuterBorder}
               onChange={(e) => patch({ table: { showOuterBorder: e.target.checked } })}
@@ -283,10 +290,22 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
         </fieldset>
 
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={() => setLocale(locale === "en" ? "es" : "en")}>
+          <Button
+            id="style-locale-toggle"
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setLocale(locale === "en" ? "es" : "en")}
+          >
             {locale === "en" ? "Preview in Spanish" : "Preview in English"}
           </Button>
-          <Button type="button" size="sm" disabled={saving} onClick={() => void save()}>
+          <Button
+            id="style-save"
+            type="button"
+            size="sm"
+            disabled={saving}
+            onClick={() => void save()}
+          >
             {saving ? "Saving…" : "Save layout"}
           </Button>
         </div>
@@ -302,7 +321,11 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
         >
           {locale === "es" ? "Distrito Escolar Unificado de Northside" : "Northside Unified School District"}
         </p>
-        <h3 className="font-heading mt-1 leading-tight" style={{ fontSize: titlePx, color: colors.ink }}>
+        <h3
+          data-testid="style-preview-title"
+          className="font-heading mt-1 leading-tight"
+          style={{ fontSize: titlePx, color: colors.ink }}
+        >
           {layoutTitle(layout, locale)}
         </h3>
         <div className="mt-2 mb-3 h-0.5 w-16" style={{ backgroundColor: colors.accent }} />
@@ -463,11 +486,13 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
 }
 
 function CopyField({
+  id,
   label,
   value,
   placeholder,
   onChange,
 }: {
+  id: string;
   label: string;
   value: string;
   placeholder: string;
@@ -475,29 +500,37 @@ function CopyField({
 }) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs font-normal text-muted-foreground">{label}</Label>
-      <Input
+      <Label htmlFor={id} className="text-xs font-normal text-muted-foreground">
+        {label}
+      </Label>
+      <input
+        id={id}
+        type="text"
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       />
     </div>
   );
 }
 
 function SizeSelect({
+  id,
   label,
   value,
   onChange,
 }: {
+  id: string;
   label: string;
   value: TypeSize;
   onChange: (value: TypeSize) => void;
 }) {
   return (
-    <label className="block">
+    <label className="block" htmlFor={id}>
       {label}
       <select
+        id={id}
         className="mt-1 h-8 w-full rounded-lg border border-input bg-background px-2 text-sm"
         value={value}
         onChange={(e) => onChange(e.target.value as TypeSize)}
@@ -519,6 +552,7 @@ function ColorField({
   value: string;
   onChange: (hex: string) => void;
 }) {
+  const slug = label.toLowerCase().replace(/\s+/g, "-");
   const [text, setText] = useState(value);
   useEffect(() => {
     setText(value);
@@ -529,6 +563,7 @@ function ColorField({
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="mt-1 flex items-center gap-2">
         <input
+          id={`style-color-${slug}`}
           type="color"
           aria-label={`${label} color`}
           value={value}
@@ -536,6 +571,7 @@ function ColorField({
           className="h-8 w-10 shrink-0 cursor-pointer rounded border border-input bg-background p-0.5"
         />
         <input
+          id={`style-hex-${slug}`}
           type="text"
           spellCheck={false}
           value={text}
