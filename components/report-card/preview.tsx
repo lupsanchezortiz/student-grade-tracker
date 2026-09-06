@@ -91,8 +91,8 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
   const markPct = 100 - table.criterionWidth;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,22rem)_1fr]">
-      <div className="space-y-5 rounded-xl border border-border bg-card p-4 text-sm xl:sticky xl:top-4">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_1fr]">
+      <div className="space-y-5 rounded-xl border border-border bg-card p-4 text-sm lg:sticky lg:top-4">
         <div>
           <h2 className="font-heading text-lg">Style</h2>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -194,6 +194,9 @@ export function ReportCardPreview({ template }: { template: TemplateDetail }) {
               className="mt-2 w-full accent-primary"
               onChange={(e) =>
                 patch({ table: { criterionWidth: Number(e.target.value) } })
+              }
+              onInput={(e) =>
+                patch({ table: { criterionWidth: Number((e.target as HTMLInputElement).value) } })
               }
             />
           </label>
@@ -509,6 +512,7 @@ function CopyField({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        onInput={(e) => onChange((e.target as HTMLInputElement).value)}
         className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
       />
     </div>
@@ -579,6 +583,13 @@ function ColorField({
           className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-background px-2 font-mono text-xs"
           onChange={(e) => {
             const next = e.target.value;
+            setText(next);
+            if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(next.trim())) {
+              onChange(next.trim());
+            }
+          }}
+          onInput={(e) => {
+            const next = (e.target as HTMLInputElement).value;
             setText(next);
             if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(next.trim())) {
               onChange(next.trim());
