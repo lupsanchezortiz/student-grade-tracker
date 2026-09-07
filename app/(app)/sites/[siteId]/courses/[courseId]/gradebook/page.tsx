@@ -31,7 +31,7 @@ export default async function SiteGradebookPage({
           </Link>
         }
       />
-      <GradebookGrid book={book} initialSectionId={section} />
+      <GradebookGrid key={book.term.id} book={book} initialSectionId={section} />
     </div>
   );
 }

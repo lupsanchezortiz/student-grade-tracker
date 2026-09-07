@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { saveGradeAction } from "@/lib/actions/mutations";
 import { isSpecialistSection } from "@/lib/data/access";
@@ -19,6 +19,22 @@ type ItemWithSection = TemplateItem & { section: TemplateSection };
 
 function key(enrollmentId: string, itemId: string) {
   return `${enrollmentId}:${itemId}`;
+}
+
+function marksFromGrades(grades: GradebookPayload["grades"]) {
+  const next: Record<CellKey, string> = {};
+  for (const grade of grades) {
+    if (grade.markId) next[key(grade.enrollmentId, grade.templateItemId)] = grade.markId;
+  }
+  return next;
+}
+
+function commentsFromGrades(grades: GradebookPayload["grades"]) {
+  const next: Record<CellKey, string> = {};
+  for (const grade of grades) {
+    if (grade.comment) next[key(grade.enrollmentId, grade.templateItemId)] = grade.comment;
+  }
+  return next;
 }
 
 function resolveSectionId(
@@ -65,21 +81,17 @@ export function GradebookGrid({
     (section) =>
       !isSpecialistSection(section) && section.items.some((item) => !editable.has(item.id)),
   );
-  const [marks, setMarks] = useState<Record<CellKey, string>>(() => {
-    const next: Record<CellKey, string> = {};
-    for (const g of grades) {
-      if (g.markId) next[key(g.enrollmentId, g.templateItemId)] = g.markId;
-    }
-    return next;
-  });
-  const [comments, setComments] = useState<Record<CellKey, string>>(() => {
-    const next: Record<CellKey, string> = {};
-    for (const g of grades) {
-      if (g.comment) next[key(g.enrollmentId, g.templateItemId)] = g.comment;
-    }
-    return next;
-  });
+  const [marks, setMarks] = useState<Record<CellKey, string>>(() => marksFromGrades(grades));
+  const [comments, setComments] = useState<Record<CellKey, string>>(() =>
+    commentsFromGrades(grades),
+  );
   const [pending, setPending] = useState<Record<CellKey, "saving" | "saved" | "error">>({});
+
+  useEffect(() => {
+    setMarks(marksFromGrades(grades));
+    setComments(commentsFromGrades(grades));
+    setPending({});
+  }, [term.id]);
   const [openStudent, setOpenStudent] = useState<string | null>(
     course.enrollments[0]?.studentId ?? null,
   );
@@ -189,13 +201,15 @@ export function GradebookGrid({
             </Button>
           ) : null}
           <p className="text-xs text-muted-foreground">
-            {canEditAny
-              ? specialistLocked
-                ? "Special subject marks are entered by specialist teachers. Your cells save as you leave them."
-                : homeroomLocked
-                  ? "Homeroom columns are view only. Specialist cells save as you leave them."
-                  : "Changes save as you leave a cell."
-              : "View only."}
+            {grades.length === 0
+              ? `${term.nameEn} starts blank. Marks you enter here stay in this trimester.`
+              : canEditAny
+                ? specialistLocked
+                  ? "Special subject marks are entered by specialist teachers. Your cells save as you leave them."
+                  : homeroomLocked
+                    ? "Homeroom columns are view only. Specialist cells save as you leave them."
+                    : "Changes save as you leave a cell."
+                : "View only."}
           </p>
         </div>
       </div>
