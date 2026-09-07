@@ -34,6 +34,12 @@ export function assertSiteAdmin(user: SessionUser, siteId: string) {
   if (!ok) throw new Error("You do not administer this school.");
 }
 
+/** Site administrators (and district) load attendance from CSV. Teachers only view it. */
+export function canImportAttendance(user: SessionUser, siteId: string) {
+  if (user.isSystemAdmin) return true;
+  return user.memberships.some((m) => m.siteId === siteId && m.role === "site_admin");
+}
+
 export function assertSiteView(user: SessionUser, siteId: string) {
   if (user.isSystemAdmin) return;
   const ok = user.memberships.some((m) => m.siteId === siteId);

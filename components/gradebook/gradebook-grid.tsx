@@ -7,10 +7,13 @@ import { saveGradeAction } from "@/lib/actions/mutations";
 import { isSpecialistSection } from "@/lib/data/access";
 import { itemTitle, marksForItem, sectionTitle } from "@/lib/data/template-doc";
 import { studentName } from "@/lib/format";
-import type { GradebookPayload, Locale, TemplateItem } from "@/lib/types";
+import type { AttendanceRecord, GradebookPayload, Locale, TemplateItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { MarkInput } from "@/components/gradebook/mark-input";
 import { cn } from "@/lib/utils";
+
+export const ATTENDANCE_TAB_ID = "attendance";
 
 type TemplateSection = GradebookPayload["course"]["template"]["sections"][number];
 
@@ -42,13 +45,14 @@ function resolveSectionId(
   requested: string | undefined,
   editable: Set<string>,
 ) {
+  if (requested === ATTENDANCE_TAB_ID) return ATTENDANCE_TAB_ID;
   if (requested && sections.some((section) => section.id === requested)) {
     return requested;
   }
   const firstEditable = sections.find((section) =>
     section.items.some((item) => editable.has(item.id)),
   );
-  return firstEditable?.id ?? sections[0]?.id ?? "";
+  return firstEditable?.id ?? sections[0]?.id ?? ATTENDANCE_TAB_ID;
 }
 
 function syncSectionUrl(termId: string, sectionId: string) {
@@ -71,7 +75,8 @@ export function GradebookGrid({
   book: GradebookPayload;
   initialSectionId?: string;
 }) {
-  const { course, term, terms, canPrint, grades, editableItemIds } = book;
+  const { course, term, terms, canPrint, grades, attendance, editableItemIds, canImportAttendance } =
+    book;
   const editable = useMemo(() => new Set(editableItemIds ?? []), [editableItemIds]);
   const canEditAny = editable.size > 0;
   const specialistLocked = course.template.sections.some(
@@ -99,13 +104,20 @@ export function GradebookGrid({
     resolveSectionId(course.template.sections, initialSectionId, editable),
   );
 
-  const activeSection =
-    course.template.sections.find((section) => section.id === sectionId) ??
-    course.template.sections[0];
+  const isAttendance = sectionId === ATTENDANCE_TAB_ID;
+  const activeSection = isAttendance
+    ? undefined
+    : (course.template.sections.find((section) => section.id === sectionId) ??
+      course.template.sections[0]);
   const items = useMemo<ItemWithSection[]>(() => {
     if (!activeSection) return [];
     return activeSection.items.map((item) => ({ ...item, section: activeSection }));
   }, [activeSection]);
+  const attendanceByEnrollment = useMemo(() => {
+    const next = new Map<string, AttendanceRecord>();
+    for (const row of attendance) next.set(row.enrollmentId, row);
+    return next;
+  }, [attendance]);
 
   const visibleMarks = useMemo(() => {
     const seen = new Set<string>();
@@ -200,21 +212,32 @@ export function GradebookGrid({
               Report cards
             </Button>
           ) : null}
+          {canImportAttendance ? (
+            <CsvImportDialog
+              kind="attendance"
+              siteId={course.siteId}
+              triggerLabel="Import attendance"
+            />
+          ) : null}
           <p className="text-xs text-muted-foreground">
-            {grades.length === 0
-              ? `${term.nameEn} starts blank. Marks you enter here stay in this trimester.`
-              : canEditAny
-                ? specialistLocked
-                  ? "Special subject marks are entered by specialist teachers. Your cells save as you leave them."
-                  : homeroomLocked
-                    ? "Homeroom columns are view only. Specialist cells save as you leave them."
-                    : "Changes save as you leave a cell."
-                : "View only."}
+            {isAttendance
+              ? canImportAttendance
+                ? "Absences and tardies come from a CSV. Import updates this tab and the printed card."
+                : "A site administrator loads absences and tardies from CSV. This tab is view only."
+              : grades.length === 0
+                ? `${term.nameEn} starts blank. Marks you enter here stay in this trimester.`
+                : canEditAny
+                  ? specialistLocked
+                    ? "Special subject marks are entered by specialist teachers. Your cells save as you leave them."
+                    : homeroomLocked
+                      ? "Homeroom columns are view only. Specialist cells save as you leave them."
+                      : "Changes save as you leave a cell."
+                  : "View only."}
           </p>
         </div>
       </div>
 
-      {visibleMarks.length > 0 ? (
+      {!isAttendance && visibleMarks.length > 0 ? (
         <div className="mb-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
           {visibleMarks.map((mark) => (
             <span key={mark.id}>
@@ -229,24 +252,24 @@ export function GradebookGrid({
         <p className="rounded-xl border border-dashed border-border px-4 py-8 text-sm text-muted-foreground">
           No students enrolled. A site administrator needs to add them to this course.
         </p>
-      ) : !activeSection || items.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border px-4 py-8 text-sm text-muted-foreground">
-          This section has no line items yet.
-        </p>
       ) : (
         <>
           <div className="hidden md:block">
-            {course.template.sections.length > 0 ? (
-              <div className="flex items-end">
-                <div className="w-80 shrink-0" aria-hidden />
-                <SectionFolderTabs
-                  sections={course.template.sections}
-                  sectionId={sectionId}
-                  locale={course.template.locale}
-                  onChange={onSectionChange}
-                />
-              </div>
-            ) : null}
+            <div className="flex items-end">
+              <div className="w-80 shrink-0" aria-hidden />
+              <SectionFolderTabs
+                sections={course.template.sections}
+                sectionId={sectionId}
+                locale={course.template.locale}
+                attendanceLoaded={attendance.length}
+                onChange={onSectionChange}
+              />
+            </div>
+            {!isAttendance && items.length === 0 ? (
+              <p className="rounded-b-xl rounded-tl-xl rounded-tr-xl border border-border bg-card px-4 py-8 text-sm text-muted-foreground">
+                This section has no line items yet.
+              </p>
+            ) : (
             <div className="overflow-auto rounded-b-xl rounded-tl-xl rounded-tr-xl border border-border bg-card">
             <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
               <colgroup>
@@ -257,19 +280,31 @@ export function GradebookGrid({
                 <tr className="bg-muted/80">
                   <th className={cn(stickyIdClass, "bg-muted font-medium")}>Student ID</th>
                   <th className={cn(stickyNameClass, "bg-muted font-medium")}>Student</th>
-                  {items.map((item) => (
-                    <th
-                      key={item.id}
-                      className="min-w-24 max-w-40 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium leading-tight"
-                    >
-                      {itemTitle(item, course.template.locale)}
-                    </th>
-                  ))}
+                  {isAttendance ? (
+                    <>
+                      <th className="min-w-24 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium">
+                        Absences
+                      </th>
+                      <th className="min-w-24 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium">
+                        Tardies
+                      </th>
+                    </>
+                  ) : (
+                    items.map((item) => (
+                      <th
+                        key={item.id}
+                        className="min-w-24 max-w-40 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium leading-tight"
+                      >
+                        {itemTitle(item, course.template.locale)}
+                      </th>
+                    ))
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {course.enrollments.map((enrollment, rowIndex) => {
                   const stripe = rowIndex % 2 ? "bg-muted" : "bg-card";
+                  const row = attendanceByEnrollment.get(enrollment.id);
                   return (
                     <tr key={enrollment.id} className={rowIndex % 2 ? "bg-muted/25" : "bg-card"}>
                       <th
@@ -284,63 +319,70 @@ export function GradebookGrid({
                       <th className={cn(stickyNameClass, "z-20 py-1.5 font-medium", stripe)}>
                         {studentName(enrollment.student)}
                       </th>
-                      {items.map((item) => {
-                        const k = key(enrollment.id, item.id);
-                        const status = pending[k];
-                        const itemEditable = editable.has(item.id);
-                        const lockedTitle = isSpecialistSection(item.section)
-                          ? "Entered by a specialist teacher"
-                          : "Entered by the homeroom teacher";
-                        return (
-                          <td
-                            key={item.id}
-                            className={cn(
-                              "border-b border-l border-border p-1",
-                              !itemEditable && "bg-muted/40",
-                              status === "saving" && "bg-amber-50",
-                              status === "error" && "bg-red-50",
-                            )}
-                          >
-                            {item.itemType === "comment" ? (
-                              <textarea
-                                disabled={!itemEditable}
-                                defaultValue={comments[k] ?? ""}
-                                maxLength={item.maxChars ?? undefined}
-                                onBlur={(e) => onCommentBlur(enrollment.id, item.id, e.target.value)}
-                                title={itemEditable ? undefined : lockedTitle}
-                                className="min-h-10 w-full min-w-40 resize-none rounded-md border-0 bg-transparent px-1.5 py-1 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-80"
-                                placeholder={item.maxChars ? `Note (${item.maxChars} max)` : "Note"}
-                              />
-                            ) : (
-                              <MarkInput
-                                marks={marksForItem(course.template, item)}
-                                markId={marks[k] ?? null}
-                                disabled={!itemEditable}
-                                disabledReason={lockedTitle}
-                                onCommit={(markId) => onMarkChange(enrollment.id, item.id, markId)}
-                              />
-                            )}
-                          </td>
-                        );
-                      })}
+                      {isAttendance ? (
+                        <>
+                          <AttendanceCell value={row?.absences} />
+                          <AttendanceCell value={row?.tardies} />
+                        </>
+                      ) : (
+                        items.map((item) => {
+                          const k = key(enrollment.id, item.id);
+                          const status = pending[k];
+                          const itemEditable = editable.has(item.id);
+                          const lockedTitle = isSpecialistSection(item.section)
+                            ? "Entered by a specialist teacher"
+                            : "Entered by the homeroom teacher";
+                          return (
+                            <td
+                              key={item.id}
+                              className={cn(
+                                "border-b border-l border-border p-1",
+                                !itemEditable && "bg-muted/40",
+                                status === "saving" && "bg-amber-50",
+                                status === "error" && "bg-red-50",
+                              )}
+                            >
+                              {item.itemType === "comment" ? (
+                                <textarea
+                                  disabled={!itemEditable}
+                                  defaultValue={comments[k] ?? ""}
+                                  maxLength={item.maxChars ?? undefined}
+                                  onBlur={(e) => onCommentBlur(enrollment.id, item.id, e.target.value)}
+                                  title={itemEditable ? undefined : lockedTitle}
+                                  className="min-h-10 w-full min-w-40 resize-none rounded-md border-0 bg-transparent px-1.5 py-1 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-80"
+                                  placeholder={item.maxChars ? `Note (${item.maxChars} max)` : "Note"}
+                                />
+                              ) : (
+                                <MarkInput
+                                  marks={marksForItem(course.template, item)}
+                                  markId={marks[k] ?? null}
+                                  disabled={!itemEditable}
+                                  disabledReason={lockedTitle}
+                                  onCommit={(markId) => onMarkChange(enrollment.id, item.id, markId)}
+                                />
+                              )}
+                            </td>
+                          );
+                        })
+                      )}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
             </div>
+            )}
           </div>
 
           <div className="md:hidden">
-            {course.template.sections.length > 0 ? (
-              <SectionFolderTabs
-                sections={course.template.sections}
-                sectionId={sectionId}
-                locale={course.template.locale}
-                onChange={onSectionChange}
-                className="mb-3"
-              />
-            ) : null}
+            <SectionFolderTabs
+              sections={course.template.sections}
+              sectionId={sectionId}
+              locale={course.template.locale}
+              attendanceLoaded={attendance.length}
+              onChange={onSectionChange}
+              className="mb-3"
+            />
             <div className="mb-3 flex gap-2 overflow-x-auto">
               {course.enrollments.map((enrollment) => (
                 <button
@@ -370,9 +412,38 @@ export function GradebookGrid({
                     </p>
                   </div>
                   <div className="rounded-xl border border-border bg-card p-3">
+                    {isAttendance ? (
+                      <>
+                        <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                          Attendance
+                          <span className="ml-2 font-normal tracking-normal normal-case">
+                            · site admin CSV
+                          </span>
+                        </p>
+                        <dl className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <dt className="text-muted-foreground">Absences</dt>
+                            <dd className="font-mono text-lg tabular-nums">
+                              {attendanceByEnrollment.get(enrollment.id)?.absences ?? "—"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-muted-foreground">Tardies</dt>
+                            <dd className="font-mono text-lg tabular-nums">
+                              {attendanceByEnrollment.get(enrollment.id)?.tardies ?? "—"}
+                            </dd>
+                          </div>
+                        </dl>
+                      </>
+                    ) : items.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">This section has no line items yet.</p>
+                    ) : (
+                      <>
                     <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                      {sectionTitle(activeSection, course.template.locale)}
-                      {isSpecialistSection(activeSection) ? (
+                      {activeSection
+                        ? sectionTitle(activeSection, course.template.locale)
+                        : "Section"}
+                      {activeSection && isSpecialistSection(activeSection) ? (
                         <span className="ml-2 font-normal tracking-normal normal-case">
                           · specialist enters
                         </span>
@@ -382,9 +453,10 @@ export function GradebookGrid({
                       {items.map((item) => {
                         const k = key(enrollment.id, item.id);
                         const itemEditable = editable.has(item.id);
-                        const lockedTitle = isSpecialistSection(activeSection)
-                          ? "Entered by a specialist teacher"
-                          : "Entered by the homeroom teacher";
+                        const lockedTitle =
+                          activeSection && isSpecialistSection(activeSection)
+                            ? "Entered by a specialist teacher"
+                            : "Entered by the homeroom teacher";
                         return (
                           <li key={item.id} className="flex flex-col gap-1">
                             <span className="text-sm">{itemTitle(item, course.template.locale)}</span>
@@ -414,6 +486,8 @@ export function GradebookGrid({
                         );
                       })}
                     </ul>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -424,19 +498,41 @@ export function GradebookGrid({
   );
 }
 
+function folderTabClass(active: boolean) {
+  return cn(
+    "max-w-48 rounded-t-lg border px-3 text-left transition-colors",
+    active
+      ? "-mb-px border-border border-b-transparent bg-muted pb-2 pt-1.5 text-foreground"
+      : "border-transparent bg-muted/70 pb-1.5 pt-1 text-muted-foreground hover:bg-muted hover:text-foreground",
+  );
+}
+
+function AttendanceCell({ value }: { value: number | undefined }) {
+  return (
+    <td className="border-b border-l border-border bg-muted/40 px-2 py-2 text-center">
+      <span className="font-mono text-sm tabular-nums">
+        {value == null ? "—" : value}
+      </span>
+    </td>
+  );
+}
+
 function SectionFolderTabs({
   sections,
   sectionId,
   locale,
+  attendanceLoaded,
   onChange,
   className,
 }: {
   sections: TemplateSection[];
   sectionId: string;
   locale: Locale;
+  attendanceLoaded: number;
   onChange: (sectionId: string | null) => void;
   className?: string;
 }) {
+  const attendanceActive = sectionId === ATTENDANCE_TAB_ID;
   return (
     <div
       role="tablist"
@@ -452,12 +548,7 @@ function SectionFolderTabs({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(section.id)}
-            className={cn(
-              "max-w-48 rounded-t-lg border px-3 text-left transition-colors",
-              active
-                ? "-mb-px border-border border-b-transparent bg-muted pb-2 pt-1.5 text-foreground"
-                : "border-transparent bg-muted/70 pb-1.5 pt-1 text-muted-foreground hover:bg-muted hover:text-foreground",
-            )}
+            className={folderTabClass(active)}
           >
             <span className="block text-xs font-semibold leading-tight">
               {sectionTitle(section, locale)}
@@ -469,6 +560,20 @@ function SectionFolderTabs({
           </button>
         );
       })}
+      <button
+        type="button"
+        role="tab"
+        aria-selected={attendanceActive}
+        onClick={() => onChange(ATTENDANCE_TAB_ID)}
+        className={folderTabClass(attendanceActive)}
+      >
+        <span className="block text-xs font-semibold leading-tight">Attendance</span>
+        <span className="mt-0.5 block text-[10px] font-normal leading-tight">
+          {attendanceLoaded === 0
+            ? "CSV import"
+            : `${attendanceLoaded} ${attendanceLoaded === 1 ? "record" : "records"}`}
+        </span>
+      </button>
     </div>
   );
 }

@@ -6,11 +6,13 @@ import { csvCell, parseCsv, type CsvRow, type ImportResult } from "@/lib/csv/par
 import type { ImportKind } from "@/lib/csv/samples";
 import { normalizePrintCode, printCodesMatch } from "@/lib/documents/print-code";
 import type {
+  AttendanceRecord,
   Locale,
   SiteRole,
   StoreState,
   Student,
   TemplateItem,
+  Term,
 } from "@/lib/types";
 
 const id = () => crypto.randomUUID();
@@ -443,10 +445,137 @@ export async function importTemplateItemsCsv(templateId: string, csv: string) {
   return mutateState((state) => applyTemplateItemsImport(state, templateId, rows));
 }
 
+function findTerm(state: StoreState, yearId: string, raw: string): Term | undefined {
+  const terms = state.terms.filter((t) => t.academicYearId === yearId);
+  const value = raw.trim().toLowerCase();
+  if (!value) return undefined;
+  const byName = terms.find(
+    (t) => t.nameEn.toLowerCase() === value || t.nameEs.toLowerCase() === value,
+  );
+  if (byName) return byName;
+  const digits = value.match(/(\d+)/);
+  if (!digits) return undefined;
+  const n = Number(digits[1]);
+  return terms.find((t) => t.sortOrder === n);
+}
+
+function parseCount(raw: string, rowNo: number, field: string, result: ImportResult) {
+  const value = raw.trim();
+  if (!value) return 0;
+  if (!/^\d+$/.test(value)) {
+    result.errors.push({ row: rowNo, message: `${field} must be a whole number.` });
+    return null;
+  }
+  return Number(value);
+}
+
+export async function importAttendanceCsv(csv: string, lockedSiteId?: string) {
+  const user = await requireUser();
+  const { rows } = parseCsv(csv);
+  return mutateState((state) => {
+    const result = emptyResult();
+    if (!state.attendance) state.attendance = [];
+    rows.forEach((row, index) => {
+      const rowNo = index + 2;
+      const site = findSite(state, csvCell(row, "site_code", "site"));
+      if (!site) {
+        result.errors.push({ row: rowNo, message: "Unknown school code." });
+        result.skipped++;
+        return;
+      }
+      if (lockedSiteId && site.id !== lockedSiteId) {
+        result.errors.push({ row: rowNo, message: `Row is for ${site.code}, not this school.` });
+        result.skipped++;
+        return;
+      }
+      try {
+        if (!user.isSystemAdmin) assertSiteAdmin(user, site.id);
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "No permission.",
+        });
+        result.skipped++;
+        return;
+      }
+      const year = findYear(state, csvCell(row, "year", "academic_year"));
+      const term = year ? findTerm(state, year.id, csvCell(row, "term", "period")) : undefined;
+      const number = csvCell(row, "student_number", "id");
+      if (!year || !term || !number) {
+        result.errors.push({
+          row: rowNo,
+          message: "Need student_number, year, and term (1, 2, 3, or Trimester 2).",
+        });
+        result.skipped++;
+        return;
+      }
+      const student = state.students.find(
+        (s) => s.siteId === site.id && s.studentNumber === number,
+      );
+      if (!student) {
+        result.errors.push({
+          row: rowNo,
+          message: `No student ${number} at ${site.code}. Import the roster first.`,
+        });
+        result.skipped++;
+        return;
+      }
+      const courseName = csvCell(row, "course", "course_name");
+      const enrollments = state.enrollments.filter((enrollment) => {
+        if (enrollment.studentId !== student.id) return false;
+        const course = state.courses.find((c) => c.id === enrollment.courseId);
+        if (!course || course.academicYearId !== year.id) return false;
+        if (courseName && course.name.toLowerCase() !== courseName.toLowerCase()) return false;
+        return true;
+      });
+      if (enrollments.length === 0) {
+        result.errors.push({
+          row: rowNo,
+          message: courseName
+            ? `Student ${number} is not enrolled in “${courseName}” for ${year.name}.`
+            : `Student ${number} is not enrolled in a course for ${year.name}.`,
+        });
+        result.skipped++;
+        return;
+      }
+      const absences = parseCount(csvCell(row, "absences", "absent"), rowNo, "absences", result);
+      const tardies = parseCount(csvCell(row, "tardies", "tardy"), rowNo, "tardies", result);
+      if (absences == null || tardies == null) {
+        result.skipped++;
+        return;
+      }
+      let created = false;
+      for (const enrollment of enrollments) {
+        const existing = state.attendance.find(
+          (a) => a.enrollmentId === enrollment.id && a.termId === term.id,
+        );
+        if (existing) {
+          existing.absences = absences;
+          existing.tardies = tardies;
+        } else {
+          const next: AttendanceRecord = {
+            id: id(),
+            enrollmentId: enrollment.id,
+            termId: term.id,
+            absences,
+            tardies,
+          };
+          state.attendance.push(next);
+          created = true;
+        }
+      }
+      if (created) result.created++;
+      else result.updated++;
+    });
+    return result;
+  });
+}
+
 export async function runImport(kind: ImportKind, csv: string, opts?: { siteId?: string; templateId?: string }) {
   if (kind === "students") return importStudentsCsv(csv, opts?.siteId);
   if (kind === "staff") return importStaffCsv(csv, opts?.siteId);
   if (kind === "courses") return importCoursesCsv(csv, opts?.siteId);
+  if (kind === "attendance") return importAttendanceCsv(csv, opts?.siteId);
   if (!opts?.templateId) throw new Error("Template is required for item import.");
   return importTemplateItemsCsv(opts.templateId, csv);
 }

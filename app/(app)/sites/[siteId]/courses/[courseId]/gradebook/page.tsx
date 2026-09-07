@@ -21,7 +21,7 @@ export default async function SiteGradebookPage({
       <PageHeader
         eyebrow={`${book.course.site.name} · ${book.course.year.name}`}
         title={book.course.name}
-        description={`${book.course.gradeLevel.nameEn} · ${book.course.template.name}. Choose a section, then mark that set of items.`}
+        description={`${book.course.gradeLevel.nameEn} · ${book.course.template.name}. Choose a section to enter marks, or Attendance for absences and tardies imported by a site administrator.`}
         actions={
           <Link
             href={`/sites/${book.course.siteId}/courses/${book.course.id}`}

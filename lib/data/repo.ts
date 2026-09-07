@@ -6,6 +6,7 @@ import {
   assertSiteView,
   canEditCourse,
   canEditCourseItem,
+  canImportAttendance,
   canPrintCourse,
   canViewCourse,
   editableItemIdsForCourse,
@@ -936,6 +937,7 @@ export async function getGradebook(courseId: string, termId?: string) {
     terms,
     canEdit: canEditCourse(user, state, courseId),
     canPrint: canPrintCourse(user, state, courseId),
+    canImportAttendance: canImportAttendance(user, course.siteId),
     editableItemIds: editableItemIdsForCourse(user, state, courseId),
     students: course.enrollments.map((e) => e.student),
     grades: state.grades.filter(
@@ -957,9 +959,9 @@ export async function upsertAttendance(input: {
   return mutateState((state) => {
     const enrollment = state.enrollments.find((e) => e.id === input.enrollmentId);
     if (!enrollment) throw new Error("Enrollment not found.");
-    if (!canEditCourse(user, state, enrollment.courseId)) {
-      throw new Error("You cannot change attendance in this course.");
-    }
+    const course = state.courses.find((c) => c.id === enrollment.courseId);
+    if (!course) throw new Error("Course not found.");
+    assertSiteAdmin(user, course.siteId);
     if (!state.attendance) state.attendance = [];
     const absences = Math.max(0, Math.round(input.absences) || 0);
     const tardies = Math.max(0, Math.round(input.tardies) || 0);

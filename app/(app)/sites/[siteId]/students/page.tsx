@@ -45,10 +45,17 @@ export default async function StudentsPage({
       <PageHeader
         eyebrow={site.name}
         title="Students"
-        description="Roster is site-specific. Enroll students into a course to place them on that gradebook."
+        description="Roster is site-specific. Enroll students into a course to place them on that gradebook. Import attendance here or from a course’s Attendance tab."
         actions={
           <>
           {canImport ? <CsvImportDialog kind="students" siteId={siteId} /> : null}
+          {canImport ? (
+            <CsvImportDialog
+              kind="attendance"
+              siteId={siteId}
+              triggerLabel="Import attendance"
+            />
+          ) : null}
           <Dialog>
             <DialogTrigger className="inline-flex h-8 items-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground">
               Add student

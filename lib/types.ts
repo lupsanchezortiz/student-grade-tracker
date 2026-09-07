@@ -270,6 +270,8 @@ export type GradebookPayload = {
   canPrint: boolean;
   /** Line items the signed-in teacher may change. Others stay visible. */
   editableItemIds: string[];
+  /** Site administrators load absences and tardies from CSV. */
+  canImportAttendance: boolean;
   students: Student[];
   grades: Grade[];
   attendance: AttendanceRecord[];

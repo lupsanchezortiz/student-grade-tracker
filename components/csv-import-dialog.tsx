@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { importCsvAction } from "@/lib/actions/mutations";
 import { parseCsv } from "@/lib/csv/parse";
@@ -18,6 +19,7 @@ const TITLES: Record<ImportKind, string> = {
   students: "Import students",
   staff: "Import staff",
   courses: "Import courses",
+  attendance: "Import attendance",
   template_items: "Import line items",
 };
 
@@ -32,6 +34,7 @@ export function CsvImportDialog({
   templateId?: string;
   triggerLabel?: string;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,6 +69,7 @@ export function CsvImportDialog({
         setOpen(false);
         setText("");
         setResult(null);
+        router.refresh();
       } else {
         toast.message(
           `${next.created} created, ${next.updated} updated, ${next.skipped} skipped.`,
@@ -103,6 +107,20 @@ export function CsvImportDialog({
             <span className="font-mono">list_item_span</span>.{" "}
             <span className="font-medium text-foreground">grade_scale</span> applies to that
             line item, not the whole template.
+          </p>
+        ) : null}
+        {kind === "attendance" ? (
+          <p className="text-sm text-muted-foreground">
+            Key: school + student number + year + term.{" "}
+            <span className="font-medium text-foreground">term</span> can be{" "}
+            <span className="font-mono">1</span>, <span className="font-mono">2</span>,{" "}
+            <span className="font-mono">3</span>, or the period name (Trimester 2).
+            Absences and tardies are whole numbers. An optional{" "}
+            <span className="font-mono">course</span> column limits the row to one
+            class; otherwise every enrollment for that student and year is updated.
+            Teachers see the numbers on the gradebook Attendance tab; they print as{" "}
+            <span className="font-mono">{"{{1A}}"}</span> /{" "}
+            <span className="font-mono">{"{{1T}}"}</span>.
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
