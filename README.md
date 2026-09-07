@@ -44,7 +44,7 @@ Without those env vars, demo mode stays on so you can use the product immediatel
 3. District assigns the template to grade levels, sets a scale on each mark item, and publishes it.
 4. The site creates a course for that grade and year. Only a published card whose grading periods match the year will attach.
 5. The site enrolls students and grants teachers grade/print permission.
-6. Teachers enter marks and attendance; print uses the template HTML (all terms) or the built-in PDF if HTML is empty.
+6. Teachers enter marks; print uses the template HTML (all terms) or the built-in PDF if HTML is empty.
 
 ## HTML documents (PowerSchool-style)
 
