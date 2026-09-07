@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type KeyboardEvent } from "react";
 import {
   markCodeForId,
   markInputHint,
@@ -15,6 +15,9 @@ export function MarkInput({
   disabled,
   disabledReason,
   compact = false,
+  gridRow,
+  gridCol,
+  onKeyDown,
   onCommit,
 }: {
   marks: GradeScaleMark[];
@@ -22,6 +25,9 @@ export function MarkInput({
   disabled?: boolean;
   disabledReason?: string;
   compact?: boolean;
+  gridRow?: number;
+  gridCol?: number;
+  onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
   onCommit: (markId: string | null) => void;
 }) {
   const hintId = useId();
@@ -56,14 +62,22 @@ export function MarkInput({
         inputMode="text"
         autoComplete="off"
         spellCheck={false}
-        disabled={disabled}
+        readOnly={disabled}
+        aria-readonly={disabled || undefined}
         value={draft}
         maxLength={longest}
         aria-label="Mark"
         aria-describedby={disabled ? undefined : hintId}
         title={disabled ? disabledReason : hint}
         placeholder="–"
+        data-grid-row={gridRow}
+        data-grid-col={gridCol}
+        onKeyDown={onKeyDown}
+        onFocus={(event) => {
+          event.currentTarget.select();
+        }}
         onChange={(event) => {
+          if (disabled) return;
           const next = event.target.value;
           const resolved = resolveTypedMark(next, marks);
           if (resolved.status === "invalid") return;
@@ -73,10 +87,15 @@ export function MarkInput({
           }
         }}
         onBlur={() => {
+          if (disabled) {
+            setDraft(saved);
+            return;
+          }
           if (!commitFrom(draft)) setDraft(saved);
         }}
         className={cn(
-          "h-8 w-full rounded-md border-0 bg-transparent px-1 text-center font-mono text-sm outline-none placeholder:text-muted-foreground focus:bg-background focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-80",
+          "h-8 w-full rounded-md border-0 bg-transparent px-1 text-center font-mono text-sm outline-none placeholder:text-muted-foreground focus:bg-background focus:ring-1 focus:ring-ring",
+          disabled && "cursor-not-allowed opacity-80",
           !compact && "min-w-14",
           compact &&
             "h-9 rounded-lg border border-input bg-background px-2 text-left focus:ring-0 focus-visible:border-ring",

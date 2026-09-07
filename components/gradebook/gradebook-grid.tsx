@@ -10,6 +10,7 @@ import { studentName } from "@/lib/format";
 import type { AttendanceRecord, GradebookPayload, Locale, TemplateItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { CsvImportDialog } from "@/components/csv-import-dialog";
+import { handleGradebookGridKeyDown } from "@/components/gradebook/grid-keyboard";
 import { MarkInput } from "@/components/gradebook/mark-input";
 import { cn } from "@/lib/utils";
 
@@ -230,13 +231,13 @@ export function GradebookGrid({
                 : "A site administrator loads absences and tardies from CSV. This tab is view only."
               : grades.length === 0
                 ? `${term.nameEn} starts blank. Marks you enter here stay in this trimester.`
-                : canEditAny
-                  ? specialistLocked
-                    ? "Special subject marks are entered by specialist teachers. Your cells save as you leave them."
-                    : homeroomLocked
-                      ? "Homeroom columns are view only. Specialist cells save as you leave them."
-                      : "Changes save as you leave a cell."
-                  : "View only."}
+              : canEditAny
+                ? specialistLocked
+                  ? "Special subject marks are entered by specialist teachers. Tab moves across, Enter moves down, arrows move between cells."
+                  : homeroomLocked
+                    ? "Homeroom columns are view only. Tab, Enter, and arrows still move between cells."
+                    : "Tab moves across. Enter moves down. Arrow keys move between cells."
+                : "View only. Tab, Enter, and arrows move between cells."}
           </p>
         </div>
       </div>
@@ -275,7 +276,12 @@ export function GradebookGrid({
               </p>
             ) : (
             <div className="w-fit max-w-full overflow-auto rounded-b-xl rounded-tl-xl rounded-tr-xl border border-border bg-card">
-            <table className="w-max border-separate border-spacing-0 text-sm">
+            <table
+              className="w-max border-separate border-spacing-0 text-sm"
+              data-gradebook-grid=""
+              data-grid-rows={course.enrollments.length}
+              data-grid-cols={isAttendance ? 2 : items.length}
+            >
               <colgroup>
                 <col className="w-28" />
                 <col className="w-52" />
@@ -355,7 +361,7 @@ export function GradebookGrid({
                           <AttendanceCell value={row?.tardies} />
                         </>
                       ) : (
-                        items.map((item) => {
+                        items.map((item, colIndex) => {
                           const k = key(enrollment.id, item.id);
                           const status = pending[k];
                           const itemEditable = editable.has(item.id);
@@ -377,12 +383,24 @@ export function GradebookGrid({
                             >
                               {item.itemType === "comment" ? (
                                 <textarea
-                                  disabled={!itemEditable}
+                                  readOnly={!itemEditable}
+                                  aria-readonly={!itemEditable || undefined}
                                   defaultValue={comments[k] ?? ""}
                                   maxLength={item.maxChars ?? undefined}
-                                  onBlur={(e) => onCommentBlur(enrollment.id, item.id, e.target.value)}
+                                  data-grid-row={rowIndex}
+                                  data-grid-col={colIndex}
+                                  onKeyDown={(event) =>
+                                    handleGradebookGridKeyDown(event, "comment")
+                                  }
+                                  onBlur={(e) => {
+                                    if (!itemEditable) return;
+                                    onCommentBlur(enrollment.id, item.id, e.target.value);
+                                  }}
                                   title={itemEditable ? undefined : lockedTitle}
-                                  className="min-h-10 w-full min-w-40 resize-none rounded-md border-0 bg-transparent px-1.5 py-1 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-80"
+                                  className={cn(
+                                    "min-h-10 w-full min-w-40 resize-none rounded-md border-0 bg-transparent px-1.5 py-1 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-ring",
+                                    !itemEditable && "cursor-not-allowed opacity-80",
+                                  )}
                                   placeholder={item.maxChars ? `Note (${item.maxChars} max)` : "Note"}
                                 />
                               ) : (
@@ -391,6 +409,11 @@ export function GradebookGrid({
                                   markId={marks[k] ?? null}
                                   disabled={!itemEditable}
                                   disabledReason={lockedTitle}
+                                  gridRow={rowIndex}
+                                  gridCol={colIndex}
+                                  onKeyDown={(event) =>
+                                    handleGradebookGridKeyDown(event, "mark")
+                                  }
                                   onCommit={(markId) => onMarkChange(enrollment.id, item.id, markId)}
                                 />
                               )}
