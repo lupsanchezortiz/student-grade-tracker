@@ -286,6 +286,18 @@ export function kindergartenDemoRoster(): {
   return { students, course, teacher, teachers, enrollments, grades, attendance };
 }
 
+/** Keep Kindergarten mark items on the 4 / 3 / 2 / 1 / NYA scale. */
+export function ensureKindergartenScales(state: StoreState) {
+  const sectionIds = new Set(
+    state.sections.filter((section) => section.templateId === IDS.tmplKinder).map((section) => section.id),
+  );
+  for (const item of state.items) {
+    if (item.itemType === "mark" && sectionIds.has(item.sectionId)) {
+      item.gradeScaleId = IDS.scale431;
+    }
+  }
+}
+
 /** Add the Kindergarten catalog to an existing demo store if it is missing. */
 export function ensureKindergarten(state: StoreState) {
   if (!state.attendance) state.attendance = [];
