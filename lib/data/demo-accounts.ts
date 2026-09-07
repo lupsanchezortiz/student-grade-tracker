@@ -12,7 +12,12 @@ export const DEMO_ACCOUNTS = [
   {
     email: "priya.shah@maple.northside.edu",
     name: "Priya Shah",
-    role: "Teacher · Kindergarten and Grade 3, Maple",
+    role: "Homeroom teacher · Kindergarten and Grade 3, Maple",
+  },
+  {
+    email: "jordan.lee@maple.northside.edu",
+    name: "Jordan Lee",
+    role: "Specialist teacher · PE, art, and specials, Maple",
   },
   {
     email: "lena.cho@cedar.northside.edu",

@@ -4,7 +4,7 @@ import { normalizeLayout } from "@/lib/data/layout";
 import { createSeedState } from "@/lib/data/seed";
 import { parseLocale } from "@/lib/data/template-doc";
 import { parseTermStructure } from "@/lib/data/terms";
-import { ensureKindergarten } from "@/lib/documents/kindergarten";
+import { ensureKindergarten, ensureSpecialistGrading } from "@/lib/documents/kindergarten";
 import { normalizePrintCode } from "@/lib/documents/print-code";
 import type { ReportCardTemplate, StoreState } from "@/lib/types";
 
@@ -80,6 +80,7 @@ function migrateState(state: StoreState): StoreState {
     item.printCode = normalizePrintCode(item.printCode);
   }
   ensureKindergarten(state);
+  ensureSpecialistGrading(state);
   return state;
 }
 

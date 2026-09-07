@@ -1,4 +1,24 @@
-import type { SessionUser, StoreState } from "@/lib/types";
+import type {
+  CourseTeacher,
+  SessionUser,
+  StoreState,
+  TemplateSection,
+} from "@/lib/types";
+
+export function isSpecialistSection(section: Pick<TemplateSection, "gradedBy">) {
+  return section.gradedBy === "specialist";
+}
+
+export function teacherMayGradeSection(
+  teacher: CourseTeacher,
+  section: Pick<TemplateSection, "id" | "gradedBy">,
+) {
+  if (!teacher.canGrade) return false;
+  if (isSpecialistSection(section)) {
+    return Boolean(teacher.sectionIds?.includes(section.id));
+  }
+  return teacher.gradesHomeroom ?? !teacher.sectionIds?.length;
+}
 
 export function assertDistrict(user: SessionUser) {
   if (!user.isSystemAdmin) {
@@ -60,4 +80,45 @@ export function canViewCourse(
   return state.courseTeachers.some(
     (t) => t.courseId === courseId && t.profileId === user.id,
   );
+}
+
+export function canEditCourseItem(
+  user: SessionUser,
+  state: StoreState,
+  courseId: string,
+  templateItemId: string,
+) {
+  if (!canEditCourse(user, state, courseId)) return false;
+  if (user.isSystemAdmin) return true;
+  const course = state.courses.find((c) => c.id === courseId);
+  if (!course) return false;
+  const isSiteAdmin = user.memberships.some(
+    (m) => m.siteId === course.siteId && m.role === "site_admin",
+  );
+  if (isSiteAdmin) return true;
+  const teacher = state.courseTeachers.find(
+    (t) => t.courseId === courseId && t.profileId === user.id && t.canGrade,
+  );
+  if (!teacher) return false;
+  const item = state.items.find((i) => i.id === templateItemId);
+  if (!item) return false;
+  const section = state.sections.find((s) => s.id === item.sectionId);
+  if (!section) return false;
+  return teacherMayGradeSection(teacher, section);
+}
+
+export function editableItemIdsForCourse(
+  user: SessionUser,
+  state: StoreState,
+  courseId: string,
+) {
+  const course = state.courses.find((c) => c.id === courseId);
+  if (!course) return [];
+  return state.items
+    .filter((item) => {
+      const section = state.sections.find((s) => s.id === item.sectionId);
+      return section?.templateId === course.templateId;
+    })
+    .filter((item) => canEditCourseItem(user, state, courseId, item.id))
+    .map((item) => item.id);
 }

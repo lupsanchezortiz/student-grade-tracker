@@ -97,6 +97,13 @@ const PROFILES: Profile[] = [
     isSystemAdmin: false,
     password: "demo",
   },
+  {
+    id: IDS.userJordan,
+    email: "jordan.lee@maple.northside.edu",
+    fullName: "Jordan Lee",
+    isSystemAdmin: false,
+    password: "demo",
+  },
 ];
 
 const MEMBERSHIPS: SiteMembership[] = [
@@ -117,6 +124,12 @@ const MEMBERSHIPS: SiteMembership[] = [
     profileId: IDS.userLena,
     siteId: IDS.siteCedar,
     role: "site_admin",
+  },
+  {
+    id: "mem-jordan",
+    profileId: IDS.userJordan,
+    siteId: IDS.siteMaple,
+    role: "teacher",
   },
 ];
 
@@ -523,7 +536,7 @@ export function createSeedState(): StoreState {
     items: structuredClone([...ITEMS, ...kinder.items]),
     students: structuredClone([...STUDENTS, ...roster.students]),
     courses: structuredClone([...COURSES, roster.course]),
-    courseTeachers: structuredClone([...COURSE_TEACHERS, roster.teacher]),
+    courseTeachers: structuredClone([...COURSE_TEACHERS, ...roster.teachers]),
     enrollments: structuredClone([...ENROLLMENTS, ...roster.enrollments]),
     grades: structuredClone([...GRADES, ...roster.grades]),
     attendance: structuredClone(roster.attendance),

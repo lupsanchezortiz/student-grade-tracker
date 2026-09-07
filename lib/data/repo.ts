@@ -5,8 +5,10 @@ import {
   assertSiteAdmin,
   assertSiteView,
   canEditCourse,
+  canEditCourseItem,
   canPrintCourse,
   canViewCourse,
+  editableItemIdsForCourse,
 } from "@/lib/data/access";
 import { findTemplateForGrade, hydrateCourse, hydrateTemplate } from "@/lib/data/hydrate";
 import { defaultLayout, normalizeLayout } from "@/lib/data/layout";
@@ -30,6 +32,7 @@ import type {
   Site,
   SiteRole,
   Student,
+  SectionGradedBy,
   TemplateItem,
   TemplateSection,
   Term,
@@ -396,7 +399,7 @@ export async function publishTemplate(templateId: string) {
 
 export async function addSection(
   templateId: string,
-  input: { titleEn: string; titleEs: string },
+  input: { titleEn: string; titleEs: string; gradedBy?: SectionGradedBy },
 ) {
   const user = await requireUser();
   assertDistrict(user);
@@ -411,6 +414,7 @@ export async function addSection(
       sortOrder: max + 1,
       titleEn: input.titleEn.trim(),
       titleEs: input.titleEs.trim(),
+      gradedBy: input.gradedBy === "specialist" ? "specialist" : "homeroom",
     };
     state.sections.push(section);
     return section;
@@ -419,7 +423,7 @@ export async function addSection(
 
 export async function updateSection(
   sectionId: string,
-  input: { titleEn: string; titleEs: string },
+  input: { titleEn: string; titleEs: string; gradedBy?: SectionGradedBy },
 ) {
   const user = await requireUser();
   assertDistrict(user);
@@ -428,6 +432,9 @@ export async function updateSection(
     if (!section) throw new Error("Section not found.");
     section.titleEn = input.titleEn.trim();
     section.titleEs = input.titleEs.trim();
+    if (input.gradedBy) {
+      section.gradedBy = input.gradedBy === "specialist" ? "specialist" : "homeroom";
+    }
     return section;
   });
 }
@@ -440,6 +447,10 @@ export async function deleteSection(sectionId: string) {
     state.grades = state.grades.filter((g) => !itemIds.includes(g.templateItemId));
     state.items = state.items.filter((i) => i.sectionId !== sectionId);
     state.sections = state.sections.filter((s) => s.id !== sectionId);
+    for (const teacher of state.courseTeachers) {
+      if (!teacher.sectionIds?.length) continue;
+      teacher.sectionIds = teacher.sectionIds.filter((id) => id !== sectionId);
+    }
   });
 }
 
@@ -568,6 +579,7 @@ export async function cloneTemplateLanguage(
         sortOrder: section.sortOrder,
         titleEn: section.titleEn,
         titleEs: section.titleEs,
+        gradedBy: section.gradedBy === "specialist" ? "specialist" : "homeroom",
       });
       for (const item of section.items) {
         state.items.push({
@@ -862,22 +874,36 @@ export async function setEnrollments(courseId: string, studentIds: string[]) {
 
 export async function setCourseTeachers(
   courseId: string,
-  teachers: { profileId: string; canGrade: boolean; canPrint: boolean }[],
+  teachers: {
+    profileId: string;
+    canGrade: boolean;
+    canPrint: boolean;
+    gradesHomeroom?: boolean;
+    sectionIds?: string[];
+  }[],
 ) {
   const user = await requireUser();
   const state = loadState();
   const course = state.courses.find((c) => c.id === courseId);
   if (!course) throw new Error("Course not found.");
   assertSiteAdmin(user, course.siteId);
+  const templateSectionIds = new Set(
+    state.sections.filter((s) => s.templateId === course.templateId).map((s) => s.id),
+  );
   mutateState((s) => {
     s.courseTeachers = s.courseTeachers.filter((t) => t.courseId !== courseId);
     for (const teacher of teachers) {
+      const sectionIds = (teacher.sectionIds ?? []).filter((id) => templateSectionIds.has(id));
+      const gradesHomeroom =
+        teacher.gradesHomeroom ?? (teacher.canGrade && sectionIds.length === 0);
       s.courseTeachers.push({
         id: id(),
         courseId,
         profileId: teacher.profileId,
         canGrade: teacher.canGrade,
         canPrint: teacher.canPrint,
+        gradesHomeroom,
+        sectionIds,
       });
     }
   });
@@ -910,6 +936,7 @@ export async function getGradebook(courseId: string, termId?: string) {
     terms,
     canEdit: canEditCourse(user, state, courseId),
     canPrint: canPrintCourse(user, state, courseId),
+    editableItemIds: editableItemIdsForCourse(user, state, courseId),
     students: course.enrollments.map((e) => e.student),
     grades: state.grades.filter(
       (g) => g.termId === term.id && enrollmentIds.has(g.enrollmentId),
@@ -1032,8 +1059,8 @@ export async function upsertGrade(input: {
   return mutateState((state) => {
     const enrollment = state.enrollments.find((e) => e.id === input.enrollmentId);
     if (!enrollment) throw new Error("Enrollment not found.");
-    if (!canEditCourse(user, state, enrollment.courseId)) {
-      throw new Error("You cannot change grades in this course.");
+    if (!canEditCourseItem(user, state, enrollment.courseId, input.templateItemId)) {
+      throw new Error("You cannot change this mark. Specialist columns are entered by the assigned specialist.");
     }
     const item = state.items.find((i) => i.id === input.templateItemId);
     const comment =

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { saveGradeAction } from "@/lib/actions/mutations";
+import { isSpecialistSection } from "@/lib/data/access";
 import { itemTitle, marksForItem, sectionTitle } from "@/lib/data/template-doc";
 import { studentName } from "@/lib/format";
 import type { GradebookPayload } from "@/lib/types";
@@ -17,7 +18,16 @@ function key(enrollmentId: string, itemId: string) {
 }
 
 export function GradebookGrid({ book }: { book: GradebookPayload }) {
-  const { course, term, terms, canEdit, canPrint, grades } = book;
+  const { course, term, terms, canPrint, grades, editableItemIds } = book;
+  const editable = useMemo(() => new Set(editableItemIds ?? []), [editableItemIds]);
+  const canEditAny = editable.size > 0;
+  const specialistLocked = course.template.sections.some(
+    (section) => isSpecialistSection(section) && section.items.some((item) => !editable.has(item.id)),
+  );
+  const homeroomLocked = course.template.sections.some(
+    (section) =>
+      !isSpecialistSection(section) && section.items.some((item) => !editable.has(item.id)),
+  );
   const [marks, setMarks] = useState<Record<CellKey, string>>(() => {
     const next: Record<CellKey, string> = {};
     for (const g of grades) {
@@ -49,6 +59,7 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
     comment: string,
   ) {
     const k = key(enrollmentId, itemId);
+    if (!editable.has(itemId)) return;
     setPending((p) => ({ ...p, [k]: "saving" }));
     try {
       await saveGradeAction({
@@ -105,7 +116,13 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
             </Button>
           ) : null}
           <p className="text-xs text-muted-foreground">
-            {canEdit ? "Changes save as you leave a cell." : "View only."}
+            {canEditAny
+              ? specialistLocked
+                ? "Special subject marks are entered by specialist teachers. Your cells save as you leave them."
+                : homeroomLocked
+                  ? "Homeroom columns are view only. Specialist cells save as you leave them."
+                  : "Changes save as you leave a cell."
+              : "View only."}
           </p>
         </div>
       </div>
@@ -142,6 +159,11 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                       className="border-b border-l border-border px-2 py-1.5 text-center text-xs font-semibold tracking-wide uppercase"
                     >
                       {sectionTitle(section, course.template.locale)}
+                      {isSpecialistSection(section) ? (
+                        <span className="mt-0.5 block text-[10px] font-normal tracking-normal text-muted-foreground normal-case">
+                          Specialist enters
+                        </span>
+                      ) : null}
                     </th>
                   ))}
                 </tr>
@@ -167,30 +189,37 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                     {items.map((item) => {
                       const k = key(enrollment.id, item.id);
                       const status = pending[k];
+                      const itemEditable = editable.has(item.id);
+                      const lockedTitle = isSpecialistSection(item.section)
+                        ? "Entered by a specialist teacher"
+                        : "Entered by the homeroom teacher";
                       return (
                         <td
                           key={item.id}
                           className={cn(
                             "border-b border-l border-border p-1",
+                            !itemEditable && "bg-muted/40",
                             status === "saving" && "bg-amber-50",
                             status === "error" && "bg-red-50",
                           )}
                         >
                           {item.itemType === "comment" ? (
                             <textarea
-                              disabled={!canEdit}
+                              disabled={!itemEditable}
                               defaultValue={comments[k] ?? ""}
                               maxLength={item.maxChars ?? undefined}
                               onBlur={(e) => onCommentBlur(enrollment.id, item.id, e.target.value)}
-                              className="min-h-10 w-44 resize-none rounded-md border-0 bg-transparent px-1.5 py-1 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-ring"
+                              title={itemEditable ? undefined : lockedTitle}
+                              className="min-h-10 w-44 resize-none rounded-md border-0 bg-transparent px-1.5 py-1 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-80"
                               placeholder={item.maxChars ? `Note (${item.maxChars} max)` : "Note"}
                             />
                           ) : (
                             <select
-                              disabled={!canEdit}
+                              disabled={!itemEditable}
                               value={marks[k] ?? ""}
                               onChange={(e) => onMarkChange(enrollment.id, item.id, e.target.value)}
-                              className="h-8 w-full min-w-16 appearance-none rounded-md border-0 bg-transparent bg-none px-1 text-center font-mono text-sm outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:opacity-80"
+                              title={itemEditable ? undefined : lockedTitle}
+                              className="h-8 w-full min-w-16 appearance-none rounded-md border-0 bg-transparent bg-none px-1 text-center font-mono text-sm outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-80"
                             >
                               <option value="">–</option>
                               {marksForItem(course.template, item).map((mark) => (
@@ -236,32 +265,43 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                     <div key={section.id} className="rounded-xl border border-border bg-card p-3">
                       <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                         {sectionTitle(section, course.template.locale)}
+                        {isSpecialistSection(section) ? (
+                          <span className="ml-2 font-normal tracking-normal normal-case">
+                            · specialist enters
+                          </span>
+                        ) : null}
                       </p>
                       <ul className="space-y-2">
                         {section.items.map((item) => {
                           const k = key(enrollment.id, item.id);
+                          const itemEditable = editable.has(item.id);
+                          const lockedTitle = isSpecialistSection(section)
+                            ? "Entered by a specialist teacher"
+                            : "Entered by the homeroom teacher";
                           return (
                             <li key={item.id} className="flex flex-col gap-1">
                               <span className="text-sm">{itemTitle(item, course.template.locale)}</span>
                               {item.itemType === "comment" ? (
                                 <textarea
-                                  disabled={!canEdit}
+                                  disabled={!itemEditable}
                                   defaultValue={comments[k] ?? ""}
                                   maxLength={item.maxChars ?? undefined}
                                   onBlur={(e) =>
                                     onCommentBlur(enrollment.id, item.id, e.target.value)
                                   }
-                                  className="min-h-16 w-full rounded-lg border border-input bg-background px-2 py-1.5 text-sm"
+                                  title={itemEditable ? undefined : lockedTitle}
+                                  className="min-h-16 w-full rounded-lg border border-input bg-background px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:bg-muted/50"
                                   placeholder={item.maxChars ? `${item.maxChars} characters max` : undefined}
                                 />
                               ) : (
                                 <select
-                                  disabled={!canEdit}
+                                  disabled={!itemEditable}
                                   value={marks[k] ?? ""}
                                   onChange={(e) =>
                                     onMarkChange(enrollment.id, item.id, e.target.value)
                                   }
-                                  className="h-9 w-full appearance-none rounded-lg border border-input bg-background bg-none px-2 text-sm"
+                                  title={itemEditable ? undefined : lockedTitle}
+                                  className="h-9 w-full appearance-none rounded-lg border border-input bg-background bg-none px-2 text-sm disabled:cursor-not-allowed disabled:bg-muted/50"
                                 >
                                   <option value="">Not marked</option>
                                   {marksForItem(course.template, item).map((mark) => (

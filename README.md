@@ -25,7 +25,8 @@ With no Supabase env vars the app runs in **demo mode** (file-backed store in `.
 | --- | --- | --- |
 | `elena.voss@northside.edu` | `demo` | System admin |
 | `marco.santos@maple.northside.edu` | `demo` | Site admin, Maple Elementary |
-| `priya.shah@maple.northside.edu` | `demo` | Kindergarten and Grade 3 teacher, Maple |
+| `priya.shah@maple.northside.edu` | `demo` | Homeroom teacher, Kindergarten and Grade 3, Maple |
+| `jordan.lee@maple.northside.edu` | `demo` | Specialist teacher (PE, art, specials), Maple |
 | `lena.cho@cedar.northside.edu` | `demo` | Site admin, Cedar Ridge K–8 |
 
 ## Supabase (optional)
@@ -43,8 +44,8 @@ Without those env vars, demo mode stays on so you can use the product immediatel
 2. District creates grade scales and a report-card template for one language and one grading-period type. School year is not stored on the template — `{{SCHOOL}}` and `{{YEAR}}` fill from the course.
 3. District assigns the template to grade levels, sets a scale on each mark item, and publishes it.
 4. The site creates a course for that grade and year. Only a published card whose grading periods match the year will attach.
-5. The site enrolls students and grants teachers grade/print permission.
-6. Teachers enter marks; print uses the template HTML (all terms) or the built-in PDF if HTML is empty.
+5. The site enrolls students and grants teachers grade/print permission. Mark a template section as specialist-entered so homeroom can view those columns but not change them; assign that section to the specialist on the course.
+6. Homeroom teachers enter classroom marks. Specialist teachers enter specials (PE, art, and the rest). Print uses the template HTML (all terms) or the built-in PDF if HTML is empty.
 
 ## HTML documents (PowerSchool-style)
 

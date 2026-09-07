@@ -34,6 +34,7 @@ type KinderSection = {
   id: string;
   titleEn: string;
   titleEs: string;
+  gradedBy?: "homeroom" | "specialist";
   items: KinderItem[];
 };
 
@@ -92,6 +93,7 @@ export const KINDER_SECTIONS: KinderSection[] = [
     id: "k-sec-specials",
     titleEn: "Special subjects",
     titleEs: "Especiales",
+    gradedBy: "specialist",
     items: [
       { id: "k-137", printCode: "37", titleEn: "Physical education", titleEs: "Educación física", itemType: "mark" },
       { id: "k-138", printCode: "38", titleEn: "Art", titleEs: "Arte", itemType: "mark" },
@@ -168,6 +170,7 @@ export function kindergartenCatalog(): {
       sortOrder: i + 1,
       titleEn: s.titleEn,
       titleEs: s.titleEs,
+      gradedBy: s.gradedBy === "specialist" ? "specialist" : "homeroom",
     })),
     items: KINDER_SECTIONS.flatMap((s) =>
       s.items.map((item, i) => ({
@@ -202,6 +205,7 @@ export function kindergartenDemoRoster(): {
   students: Student[];
   course: Course;
   teacher: CourseTeacher;
+  teachers: CourseTeacher[];
   enrollments: Enrollment[];
   grades: Grade[];
   attendance: AttendanceRecord[];
@@ -229,12 +233,27 @@ export function kindergartenDemoRoster(): {
     profileId: IDS.userPriya,
     canGrade: true,
     canPrint: true,
+    gradesHomeroom: true,
+    sectionIds: [],
   };
+  const specialist: CourseTeacher = {
+    id: "ct-jordan-k",
+    courseId: IDS.courseMapleK,
+    profileId: IDS.userJordan,
+    canGrade: true,
+    canPrint: false,
+    gradesHomeroom: false,
+    sectionIds: ["k-sec-specials"],
+  };
+  const teachers = [teacher, specialist];
   const grades: Grade[] = [
     { id: "gr-k-1-101", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-101", markId: IDS.mark3, comment: "" },
     { id: "gr-k-1-102", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-102", markId: IDS.mark3, comment: "" },
     { id: "gr-k-1-103", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-103", markId: IDS.mark2, comment: "" },
     { id: "gr-k-1-108", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-108", markId: IDS.mark4, comment: "" },
+    { id: "gr-k-1-137", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-137", markId: IDS.mark3, comment: "" },
+    { id: "gr-k-1-138", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-138", markId: IDS.mark4, comment: "" },
+    { id: "gr-k-1-142", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-142", markId: IDS.mark3, comment: "" },
     { id: "gr-k-1-143", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-143", markId: IDS.mark3, comment: "" },
     {
       id: "gr-k-1-ilp",
@@ -264,7 +283,7 @@ export function kindergartenDemoRoster(): {
   const attendance: AttendanceRecord[] = [
     { id: "att-k-1-t1", enrollmentId: "enr-k-1", termId: IDS.term1, absences: 2, tardies: 1 },
   ];
-  return { students, course, teacher, enrollments, grades, attendance };
+  return { students, course, teacher, teachers, enrollments, grades, attendance };
 }
 
 /** Add the Kindergarten catalog to an existing demo store if it is missing. */
@@ -295,9 +314,76 @@ export function ensureKindergarten(state: StoreState) {
   }
   if (!state.courses.some((c) => c.id === roster.course.id)) {
     state.courses.push(roster.course);
-    state.courseTeachers.push(roster.teacher);
+    state.courseTeachers.push(...roster.teachers);
     state.enrollments.push(...roster.enrollments);
     state.grades.push(...roster.grades);
     state.attendance.push(...roster.attendance);
+  }
+}
+
+/** Mark specials as specialist-entered and add the demo specialist teacher. */
+export function ensureSpecialistGrading(state: StoreState) {
+  for (const section of state.sections) {
+    if (section.id === "k-sec-specials" || /^special subjects$/i.test(section.titleEn)) {
+      section.gradedBy = "specialist";
+    } else if (!section.gradedBy) {
+      section.gradedBy = "homeroom";
+    }
+  }
+
+  if (!state.profiles.some((p) => p.id === IDS.userJordan)) {
+    state.profiles.push({
+      id: IDS.userJordan,
+      email: "jordan.lee@maple.northside.edu",
+      fullName: "Jordan Lee",
+      isSystemAdmin: false,
+      password: "demo",
+    });
+  }
+  if (
+    !state.memberships.some(
+      (m) => m.profileId === IDS.userJordan && m.siteId === IDS.siteMaple,
+    )
+  ) {
+    state.memberships.push({
+      id: "mem-jordan",
+      profileId: IDS.userJordan,
+      siteId: IDS.siteMaple,
+      role: "teacher",
+    });
+  }
+  if (
+    state.courses.some((c) => c.id === IDS.courseMapleK) &&
+    !state.courseTeachers.some(
+      (t) => t.courseId === IDS.courseMapleK && t.profileId === IDS.userJordan,
+    )
+  ) {
+    state.courseTeachers.push({
+      id: "ct-jordan-k",
+      courseId: IDS.courseMapleK,
+      profileId: IDS.userJordan,
+      canGrade: true,
+      canPrint: false,
+      gradesHomeroom: false,
+      sectionIds: ["k-sec-specials"],
+    });
+  }
+  const priyaK = state.courseTeachers.find(
+    (t) => t.courseId === IDS.courseMapleK && t.profileId === IDS.userPriya,
+  );
+  if (priyaK && priyaK.gradesHomeroom == null && !priyaK.sectionIds?.length) {
+    priyaK.gradesHomeroom = true;
+    priyaK.sectionIds = [];
+  }
+
+  const sampleSpecials: Grade[] = [
+    { id: "gr-k-1-137", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-137", markId: IDS.mark3, comment: "" },
+    { id: "gr-k-1-138", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-138", markId: IDS.mark4, comment: "" },
+    { id: "gr-k-1-142", enrollmentId: "enr-k-1", termId: IDS.term1, templateItemId: "k-142", markId: IDS.mark3, comment: "" },
+  ];
+  for (const grade of sampleSpecials) {
+    if (!state.grades.some((g) => g.id === grade.id)) {
+      state.grades.push(grade);
+    }
   }
 }

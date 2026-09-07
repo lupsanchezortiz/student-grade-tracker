@@ -172,9 +172,24 @@ export default async function TemplateDetailPage({
               <input type="hidden" name="locale" value={template.locale} />
               <input type="hidden" name="titleEn" value={section.titleEn} />
               <input type="hidden" name="titleEs" value={section.titleEs} />
-              <div className="space-y-1.5">
-                <Label>Section</Label>
-                <Input name="title" defaultValue={sectionTitle(section, template.locale)} required />
+              <div className="space-y-2">
+                <div className="space-y-1.5">
+                  <Label>Section</Label>
+                  <Input name="title" defaultValue={sectionTitle(section, template.locale)} required />
+                </div>
+                <label className="flex items-start gap-2 text-xs leading-snug text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    name="specialist"
+                    value="1"
+                    defaultChecked={section.gradedBy === "specialist"}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    Specialist teachers enter these marks. Homeroom can see them but cannot change
+                    them.
+                  </span>
+                </label>
               </div>
               <div className="flex items-end">
                 <Button type="submit" size="sm" variant="outline">
@@ -343,11 +358,15 @@ export default async function TemplateDetailPage({
 
       <form
         action={addSectionAction}
-        className="mt-6 grid gap-2 rounded-xl border border-dashed border-border p-4 sm:grid-cols-2"
+        className="mt-6 grid gap-2 rounded-xl border border-dashed border-border p-4 sm:grid-cols-[1fr_auto_auto] sm:items-center"
       >
         <input type="hidden" name="templateId" value={template.id} />
         <input type="hidden" name="locale" value={template.locale} />
         <Input name="title" placeholder="New section" required />
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <input type="checkbox" name="specialist" value="1" />
+          Specialist teachers enter these marks
+        </label>
         <Button type="submit" variant="outline">
           Add section
         </Button>

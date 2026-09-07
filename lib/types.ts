@@ -3,6 +3,7 @@ export type TemplateStatus = "draft" | "published";
 export type ItemType = "mark" | "comment";
 export type SiteRole = "site_admin" | "teacher";
 export type Locale = "en" | "es";
+export type SectionGradedBy = "homeroom" | "specialist";
 
 export type Site = {
   id: string;
@@ -99,6 +100,8 @@ export type TemplateSection = {
   sortOrder: number;
   titleEn: string;
   titleEs: string;
+  /** Who enters marks in this section. Homeroom can always view specialist columns. */
+  gradedBy?: SectionGradedBy;
 };
 
 export type TemplateItem = {
@@ -184,6 +187,10 @@ export type CourseTeacher = {
   profileId: string;
   canGrade: boolean;
   canPrint: boolean;
+  /** Enter homeroom sections. Defaults to true when no specialist sections are assigned. */
+  gradesHomeroom?: boolean;
+  /** Specialist (or other) section ids this teacher may enter. */
+  sectionIds?: string[];
 };
 
 export type Enrollment = {
@@ -261,6 +268,8 @@ export type GradebookPayload = {
   terms: Term[];
   canEdit: boolean;
   canPrint: boolean;
+  /** Line items the signed-in teacher may change. Others stay visible. */
+  editableItemIds: string[];
   students: Student[];
   grades: Grade[];
   attendance: AttendanceRecord[];

@@ -38,7 +38,18 @@ import { runImport } from "@/lib/data/import";
 import type { ImportKind } from "@/lib/csv/samples";
 import { parseLocale } from "@/lib/data/template-doc";
 import { parseTermStructure } from "@/lib/data/terms";
-import type { ItemType, Locale, SiteRole, TemplateLayout, TermStructure } from "@/lib/types";
+import type {
+  ItemType,
+  Locale,
+  SectionGradedBy,
+  SiteRole,
+  TemplateLayout,
+  TermStructure,
+} from "@/lib/types";
+
+function gradedByFromForm(formData: FormData): SectionGradedBy {
+  return formData.get("specialist") === "1" ? "specialist" : "homeroom";
+}
 
 function titlesFromForm(formData: FormData) {
   const title = str(formData, "title");
@@ -166,12 +177,18 @@ export async function publishTemplateAction(formData: FormData) {
 
 export async function addSectionAction(formData: FormData) {
   const templateId = str(formData, "templateId");
-  await addSection(templateId, titlesFromForm(formData));
+  await addSection(templateId, {
+    ...titlesFromForm(formData),
+    gradedBy: gradedByFromForm(formData),
+  });
   revalidatePath(`/district/templates/${templateId}`);
 }
 
 export async function updateSectionAction(formData: FormData) {
-  await updateSection(str(formData, "id"), titlesFromForm(formData));
+  await updateSection(str(formData, "id"), {
+    ...titlesFromForm(formData),
+    gradedBy: gradedByFromForm(formData),
+  });
   revalidatePath("/district/templates");
 }
 
@@ -278,13 +295,20 @@ export async function setTeachersAction(formData: FormData) {
   const profileIds = formData.getAll("profileId").map(String);
   const canGrade = new Set(formData.getAll("canGrade").map(String));
   const canPrint = new Set(formData.getAll("canPrint").map(String));
+  const gradeHomeroom = new Set(formData.getAll("gradeHomeroom").map(String));
   await setCourseTeachers(
     courseId,
-    profileIds.map((profileId) => ({
-      profileId,
-      canGrade: canGrade.has(profileId),
-      canPrint: canPrint.has(profileId),
-    })),
+    profileIds.map((profileId) => {
+      const sectionIds = formData.getAll(`gradeSection:${profileId}`).map(String);
+      const grades = canGrade.has(profileId);
+      return {
+        profileId,
+        canGrade: grades,
+        canPrint: canPrint.has(profileId),
+        gradesHomeroom: gradeHomeroom.has(profileId) || (grades && sectionIds.length === 0),
+        sectionIds,
+      };
+    }),
   );
   revalidatePath(`/sites`);
 }
