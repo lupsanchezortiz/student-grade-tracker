@@ -261,13 +261,13 @@ export function GradebookGrid({
                       <th
                         className={cn(
                           stickyIdClass,
-                          "z-10 py-1.5 font-mono text-xs font-medium text-muted-foreground",
+                          "z-20 py-1.5 font-mono text-xs font-medium text-muted-foreground",
                           stripe,
                         )}
                       >
                         {enrollment.student.studentNumber}
                       </th>
-                      <th className={cn(stickyNameClass, "z-10 py-1.5 font-medium", stripe)}>
+                      <th className={cn(stickyNameClass, "z-20 py-1.5 font-medium", stripe)}>
                         {studentName(enrollment.student)}
                       </th>
                       {items.map((item) => {
