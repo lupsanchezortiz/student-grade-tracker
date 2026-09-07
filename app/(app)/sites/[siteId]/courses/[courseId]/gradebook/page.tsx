@@ -9,10 +9,10 @@ export default async function SiteGradebookPage({
   searchParams,
 }: {
   params: Promise<{ siteId: string; courseId: string }>;
-  searchParams: Promise<{ term?: string }>;
+  searchParams: Promise<{ term?: string; section?: string }>;
 }) {
   const { siteId, courseId } = await params;
-  const { term } = await searchParams;
+  const { term, section } = await searchParams;
   const book = await getGradebook(courseId, term);
   if (book.course.siteId !== siteId) notFound();
 
@@ -21,7 +21,7 @@ export default async function SiteGradebookPage({
       <PageHeader
         eyebrow={`${book.course.site.name} · ${book.course.year.name}`}
         title={book.course.name}
-        description={`${book.course.gradeLevel.nameEn} · ${book.course.template.name}. Students are rows; report-card items are columns.`}
+        description={`${book.course.gradeLevel.nameEn} · ${book.course.template.name}. Choose a section, then mark that set of items.`}
         actions={
           <Link
             href={`/sites/${book.course.siteId}/courses/${book.course.id}`}
@@ -31,7 +31,7 @@ export default async function SiteGradebookPage({
           </Link>
         }
       />
-      <GradebookGrid book={book} />
+      <GradebookGrid book={book} initialSectionId={section} />
     </div>
   );
 }

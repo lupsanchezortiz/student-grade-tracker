@@ -6,11 +6,14 @@ export default async function GradebookRedirectPage({
   searchParams,
 }: {
   params: Promise<{ courseId: string }>;
-  searchParams: Promise<{ term?: string }>;
+  searchParams: Promise<{ term?: string; section?: string }>;
 }) {
   const { courseId } = await params;
-  const { term } = await searchParams;
+  const { term, section } = await searchParams;
   const course = await getCourse(courseId);
-  const q = term ? `?term=${term}` : "";
+  const query = new URLSearchParams();
+  if (term) query.set("term", term);
+  if (section) query.set("section", section);
+  const q = query.toString() ? `?${query}` : "";
   redirect(`/sites/${course.siteId}/courses/${course.id}/gradebook${q}`);
 }
