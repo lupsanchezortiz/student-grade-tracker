@@ -64,9 +64,13 @@ function syncSectionUrl(termId: string, sectionId: string) {
 }
 
 const stickyIdClass =
-  "sticky left-0 z-30 box-border w-28 min-w-28 max-w-28 overflow-hidden border-b border-r border-border px-2.5 py-2 text-left align-middle whitespace-nowrap";
+  "sticky left-0 z-30 box-border w-28 min-w-28 max-w-28 overflow-hidden border-b border-r border-border px-2.5 py-1.5 text-left align-middle whitespace-nowrap";
 const stickyNameClass =
-  "sticky left-28 z-30 box-border w-52 min-w-52 max-w-52 overflow-hidden border-b border-r border-border px-3 py-2 text-left align-middle whitespace-nowrap shadow-[2px_0_6px_-2px_rgba(15,23,42,0.18)]";
+  "sticky left-28 z-30 box-border w-52 min-w-52 max-w-52 overflow-hidden border-b border-r border-border px-3 py-1.5 text-left align-middle whitespace-nowrap shadow-[2px_0_6px_-2px_rgba(15,23,42,0.18)]";
+const headerRowClass =
+  "h-12 max-h-12";
+const headerItemClass =
+  "h-12 max-h-12 border-b border-l border-border px-1.5 py-1 text-center text-xs font-medium leading-tight";
 
 export function GradebookGrid({
   book,
@@ -291,31 +295,39 @@ export function GradebookGrid({
               </colgroup>
               <thead>
                 <tr className="bg-muted/80">
-                  <th className={cn(stickyIdClass, "bg-muted font-medium")}>Student ID</th>
-                  <th className={cn(stickyNameClass, "bg-muted font-medium")}>Student</th>
+                  <th className={cn(stickyIdClass, headerRowClass, "bg-muted font-medium")}>
+                    Student ID
+                  </th>
+                  <th className={cn(stickyNameClass, headerRowClass, "bg-muted font-medium")}>
+                    Student
+                  </th>
                   {isAttendance ? (
                     <>
-                      <th className="box-border w-24 min-w-24 max-w-24 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium">
+                      <th className={cn(headerItemClass, "box-border w-24 min-w-24 max-w-24")}>
                         Absences
                       </th>
-                      <th className="box-border w-24 min-w-24 max-w-24 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium">
+                      <th className={cn(headerItemClass, "box-border w-24 min-w-24 max-w-24")}>
                         Tardies
                       </th>
                     </>
                   ) : (
-                    items.map((item) => (
-                      <th
-                        key={item.id}
-                        className={cn(
-                          "border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium leading-tight",
-                          item.itemType === "comment"
-                            ? "w-72 min-w-72"
-                            : "box-border w-36 min-w-36 max-w-36",
-                        )}
-                      >
-                        {itemTitle(item, course.template.locale)}
-                      </th>
-                    ))
+                    items.map((item) => {
+                      const title = itemTitle(item, course.template.locale);
+                      return (
+                        <th
+                          key={item.id}
+                          title={title}
+                          className={cn(
+                            headerItemClass,
+                            item.itemType === "comment"
+                              ? "w-72 min-w-72"
+                              : "box-border w-36 min-w-36 max-w-36",
+                          )}
+                        >
+                          <span className="line-clamp-2">{title}</span>
+                        </th>
+                      );
+                    })
                   )}
                 </tr>
               </thead>
