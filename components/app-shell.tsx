@@ -50,6 +50,9 @@ function isNavGroup(entry: NavEntry): entry is NavGroup {
   return "children" in entry && Array.isArray(entry.children);
 }
 
+const sidebarControlClass =
+  "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground aria-expanded:bg-transparent aria-expanded:text-sidebar-foreground/80";
+
 function districtNav(): NavEntry[] {
   return [
     { href: "/district", label: "Overview", icon: LayoutDashboard },

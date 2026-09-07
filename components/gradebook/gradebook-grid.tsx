@@ -230,7 +230,7 @@ export function GradebookGrid({
                 ? "Absences and tardies come from a CSV. Import updates this tab and the printed card."
                 : "A site administrator loads absences and tardies from CSV. This tab is view only."
               : grades.length === 0
-                ? `${term.nameEn} starts blank. Marks you enter here stay in this trimester.`
+                ? `${term.nameEn} starts blank. Tab moves across, Enter moves down, arrows move between cells.`
               : canEditAny
                 ? specialistLocked
                   ? "Special subject marks are entered by specialist teachers. Tab moves across, Enter moves down, arrows move between cells."
