@@ -89,7 +89,7 @@ export function MarkInput({
           className={cn(
             compact
               ? "mt-1 block text-xs text-muted-foreground"
-              : "pointer-events-none absolute bottom-full left-1/2 z-40 mb-1.5 -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-[11px] whitespace-nowrap text-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
+              : "pointer-events-none absolute bottom-full left-1/2 z-0 mb-1.5 -translate-x-1/2 rounded-md bg-foreground px-2 py-1 text-[11px] whitespace-nowrap text-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
           )}
         >
           {hint}

@@ -44,9 +44,9 @@ function syncSectionUrl(termId: string, sectionId: string) {
 }
 
 const stickyIdClass =
-  "sticky left-0 z-20 box-border w-28 min-w-28 max-w-28 overflow-hidden border-b border-r border-border px-2.5 py-2 text-left align-middle whitespace-nowrap";
+  "sticky left-0 z-30 box-border w-28 min-w-28 max-w-28 overflow-hidden border-b border-r border-border px-2.5 py-2 text-left align-middle whitespace-nowrap";
 const stickyNameClass =
-  "sticky left-28 z-20 box-border w-52 min-w-52 max-w-52 overflow-hidden border-b border-r border-border px-3 py-2 text-left align-middle whitespace-nowrap shadow-[2px_0_6px_-2px_rgba(15,23,42,0.18)]";
+  "sticky left-28 z-30 box-border w-52 min-w-52 max-w-52 overflow-hidden border-b border-r border-border px-3 py-2 text-left align-middle whitespace-nowrap shadow-[2px_0_6px_-2px_rgba(15,23,42,0.18)]";
 
 export function GradebookGrid({
   book,
