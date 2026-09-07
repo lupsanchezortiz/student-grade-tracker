@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,16 +12,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createScaleAction, updateScaleAction } from "@/lib/actions/mutations";
 import { listScales } from "@/lib/data/repo";
+import { cn } from "@/lib/utils";
 
-export default async function ScalesPage() {
+export default async function ScalesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scale?: string }>;
+}) {
+  const { scale: selectedId } = await searchParams;
   const scales = await listScales();
+  const selected = scales.find((scale) => scale.id === selectedId) ?? null;
 
   return (
     <div>
       <PageHeader
         eyebrow="Report cards"
         title="Grade scales"
-        description="Marks appear on every gradebook and report card that uses the scale. Labels are stored in English and Spanish."
+        description="Choose a scale to edit its marks. Those marks appear on every gradebook and report card that uses the scale."
         actions={
           <Dialog>
             <DialogTrigger className="inline-flex h-8 items-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground">
@@ -39,7 +47,12 @@ export default async function ScalesPage() {
                   Five rows are provided. Leave unused rows blank.
                 </p>
                 {[0, 1, 2, 3, 4].map((i) => (
-                  <MarkRow key={i} index={i} placeholder={["A", "B", "C", "D", "F"][i]} passDefault={i < 4} />
+                  <MarkRow
+                    key={i}
+                    index={i}
+                    placeholder={["A", "B", "C", "D", "F"][i]}
+                    passDefault={i < 4}
+                  />
                 ))}
                 <Button type="submit">Save scale</Button>
               </form>
@@ -47,43 +60,95 @@ export default async function ScalesPage() {
           </Dialog>
         }
       />
-      <div className="grid gap-4 md:grid-cols-2">
-        {scales.map((scale) => (
-          <form
-            key={scale.id}
-            action={updateScaleAction}
-            className="space-y-3 rounded-xl border border-border bg-card p-4"
+
+      {scales.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border px-4 py-8 text-sm text-muted-foreground">
+          No grade scales yet. Create one to use on report-card line items.
+        </p>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]">
+          <nav
+            className={cn(
+              "rounded-xl border border-border bg-card",
+              selected ? "hidden lg:block" : "block",
+            )}
+            aria-label="Grade scales"
           >
-            <input type="hidden" name="id" value={scale.id} />
-            <div className="space-y-1.5">
-              <Label htmlFor={`scale-name-${scale.id}`}>Scale name</Label>
-              <Input
-                id={`scale-name-${scale.id}`}
-                name="name"
-                defaultValue={scale.name}
-                required
-              />
+            <ul className="divide-y divide-border">
+              {scales.map((scale) => {
+                const active = scale.id === selected?.id;
+                return (
+                  <li key={scale.id}>
+                    <Link
+                      href={`/district/scales?scale=${scale.id}`}
+                      className={cn(
+                        "block px-4 py-3 hover:bg-muted/70",
+                        active && "bg-muted",
+                      )}
+                    >
+                      <p className="font-medium">{scale.name}</p>
+                      <p className="mt-1 font-mono text-xs text-muted-foreground">
+                        {scale.marks.map((mark) => mark.code).join(" · ") || "No marks"}
+                      </p>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          {selected ? (
+            <form
+              action={updateScaleAction}
+              className="space-y-3 rounded-xl border border-border bg-card p-4"
+            >
+              <input type="hidden" name="id" value={selected.id} />
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <Label htmlFor={`scale-name-${selected.id}`}>Scale name</Label>
+                  <Input
+                    id={`scale-name-${selected.id}`}
+                    name="name"
+                    defaultValue={selected.name}
+                    required
+                  />
+                </div>
+                <Link
+                  href="/district/scales"
+                  className="mt-6 text-sm text-primary hover:underline lg:hidden"
+                >
+                  All scales
+                </Link>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Labels are stored in English and Spanish. Add a mark with the blank row at the
+                bottom.
+              </p>
+              <div className="space-y-2">
+                {selected.marks.map((mark, i) => (
+                  <MarkRow
+                    key={mark.id}
+                    index={i}
+                    markId={mark.id}
+                    code={mark.code}
+                    labelEn={mark.labelEn}
+                    labelEs={mark.labelEs}
+                    passDefault={mark.isPassing}
+                  />
+                ))}
+                <MarkRow index={selected.marks.length} placeholder="+" />
+              </div>
+              <Button type="submit" variant="outline" size="sm">
+                Save scale
+              </Button>
+            </form>
+          ) : (
+            <div className="hidden rounded-xl border border-dashed border-border px-4 py-12 text-sm text-muted-foreground lg:block">
+              Select a scale to edit its name and marks.
             </div>
-            <div className="space-y-2">
-              {scale.marks.map((mark, i) => (
-                <MarkRow
-                  key={mark.id}
-                  index={i}
-                  markId={mark.id}
-                  code={mark.code}
-                  labelEn={mark.labelEn}
-                  labelEs={mark.labelEs}
-                  passDefault={mark.isPassing}
-                />
-              ))}
-              <MarkRow index={scale.marks.length} placeholder="+" />
-            </div>
-            <Button type="submit" variant="outline" size="sm">
-              Save scale
-            </Button>
-          </form>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

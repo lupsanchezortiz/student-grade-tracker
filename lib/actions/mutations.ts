@@ -133,11 +133,12 @@ function marksFromForm(formData: FormData) {
 }
 
 export async function createScaleAction(formData: FormData) {
-  await createScale({
+  const created = await createScale({
     name: str(formData, "name"),
     marks: marksFromForm(formData),
   });
   revalidatePath("/district/scales");
+  redirect(`/district/scales?scale=${created.id}`);
 }
 
 export async function updateScaleAction(formData: FormData) {
