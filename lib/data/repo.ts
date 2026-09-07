@@ -1063,6 +1063,12 @@ export async function upsertGrade(input: {
       throw new Error("You cannot change this mark. Specialist columns are entered by the assigned specialist.");
     }
     const item = state.items.find((i) => i.id === input.templateItemId);
+    if (item?.itemType === "mark" && input.markId) {
+      const mark = state.marks.find((m) => m.id === input.markId);
+      if (!mark || (item.gradeScaleId && mark.scaleId !== item.gradeScaleId)) {
+        throw new Error("That mark is not allowed for this item.");
+      }
+    }
     const comment =
       item?.itemType === "comment" && item.maxChars
         ? input.comment.slice(0, item.maxChars)

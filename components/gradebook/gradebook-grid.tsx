@@ -8,11 +8,12 @@ import { isSpecialistSection } from "@/lib/data/access";
 import { itemTitle, marksForItem, sectionTitle } from "@/lib/data/template-doc";
 import { studentName } from "@/lib/format";
 import type { GradebookPayload, TemplateItem } from "@/lib/types";
-
-type TemplateSection = GradebookPayload["course"]["template"]["sections"][number];
 import { Button } from "@/components/ui/button";
+import { MarkInput } from "@/components/gradebook/mark-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+
+type TemplateSection = GradebookPayload["course"]["template"]["sections"][number];
 
 type CellKey = string;
 type ItemWithSection = TemplateItem & { section: TemplateSection };
@@ -132,10 +133,15 @@ export function GradebookGrid({
     }
   }
 
-  function onMarkChange(enrollmentId: string, itemId: string, markId: string) {
+  function onMarkChange(enrollmentId: string, itemId: string, markId: string | null) {
     const k = key(enrollmentId, itemId);
-    setMarks((m) => ({ ...m, [k]: markId }));
-    void persist(enrollmentId, itemId, markId || null, comments[k] ?? "");
+    setMarks((m) => {
+      const next = { ...m };
+      if (markId) next[k] = markId;
+      else delete next[k];
+      return next;
+    });
+    void persist(enrollmentId, itemId, markId, comments[k] ?? "");
   }
 
   function onCommentBlur(enrollmentId: string, itemId: string, comment: string) {
@@ -307,20 +313,13 @@ export function GradebookGrid({
                                 placeholder={item.maxChars ? `Note (${item.maxChars} max)` : "Note"}
                               />
                             ) : (
-                              <select
+                              <MarkInput
+                                marks={marksForItem(course.template, item)}
+                                markId={marks[k] ?? null}
                                 disabled={!itemEditable}
-                                value={marks[k] ?? ""}
-                                onChange={(e) => onMarkChange(enrollment.id, item.id, e.target.value)}
-                                title={itemEditable ? undefined : lockedTitle}
-                                className="h-8 w-full min-w-16 appearance-none rounded-md border-0 bg-transparent bg-none px-1 text-center font-mono text-sm outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-80"
-                              >
-                                <option value="">–</option>
-                                {marksForItem(course.template, item).map((mark) => (
-                                  <option key={mark.id} value={mark.id}>
-                                    {mark.code}
-                                  </option>
-                                ))}
-                              </select>
+                                disabledReason={lockedTitle}
+                                onCommit={(markId) => onMarkChange(enrollment.id, item.id, markId)}
+                              />
                             )}
                           </td>
                         );
@@ -393,22 +392,14 @@ export function GradebookGrid({
                                 placeholder={item.maxChars ? `${item.maxChars} characters max` : undefined}
                               />
                             ) : (
-                              <select
+                              <MarkInput
+                                marks={marksForItem(course.template, item)}
+                                markId={marks[k] ?? null}
                                 disabled={!itemEditable}
-                                value={marks[k] ?? ""}
-                                onChange={(e) =>
-                                  onMarkChange(enrollment.id, item.id, e.target.value)
-                                }
-                                title={itemEditable ? undefined : lockedTitle}
-                                className="h-9 w-full appearance-none rounded-lg border border-input bg-background bg-none px-2 text-sm disabled:cursor-not-allowed disabled:bg-muted/50"
-                              >
-                                <option value="">Not marked</option>
-                                {marksForItem(course.template, item).map((mark) => (
-                                  <option key={mark.id} value={mark.id}>
-                                    {mark.code} — {mark.labelEn}
-                                  </option>
-                                ))}
-                              </select>
+                                disabledReason={lockedTitle}
+                                compact
+                                onCommit={(markId) => onMarkChange(enrollment.id, item.id, markId)}
+                              />
                             )}
                           </li>
                         );
