@@ -7,10 +7,9 @@ import { saveGradeAction } from "@/lib/actions/mutations";
 import { isSpecialistSection } from "@/lib/data/access";
 import { itemTitle, marksForItem, sectionTitle } from "@/lib/data/template-doc";
 import { studentName } from "@/lib/format";
-import type { GradebookPayload, TemplateItem } from "@/lib/types";
+import type { GradebookPayload, Locale, TemplateItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { MarkInput } from "@/components/gradebook/mark-input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 type TemplateSection = GradebookPayload["course"]["template"]["sections"][number];
@@ -201,34 +200,8 @@ export function GradebookGrid({
         </div>
       </div>
 
-      {course.template.sections.length > 0 ? (
-        <Tabs value={sectionId} onValueChange={onSectionChange} className="mb-4 gap-3">
-          <TabsList
-            variant="default"
-            className="flex h-auto w-full flex-wrap justify-start gap-1 bg-muted p-1"
-          >
-            {course.template.sections.map((section) => (
-              <TabsTrigger
-                key={section.id}
-                value={section.id}
-                className="h-auto flex-none whitespace-normal px-3 py-1.5 text-left"
-              >
-                <span className="flex flex-col items-start gap-0.5">
-                  <span>{sectionTitle(section, course.template.locale)}</span>
-                  <span className="text-[11px] font-normal text-muted-foreground">
-                    {section.items.length}{" "}
-                    {section.items.length === 1 ? "item" : "items"}
-                    {isSpecialistSection(section) ? " · specialist" : ""}
-                  </span>
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      ) : null}
-
       {visibleMarks.length > 0 ? (
-        <div className="mb-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
+        <div className="mb-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
           {visibleMarks.map((mark) => (
             <span key={mark.id}>
               <span className="font-mono font-semibold text-foreground">{mark.code}</span>{" "}
@@ -248,7 +221,19 @@ export function GradebookGrid({
         </p>
       ) : (
         <>
-          <div className="hidden overflow-auto rounded-xl border border-border bg-card md:block">
+          <div className="hidden md:block">
+            {course.template.sections.length > 0 ? (
+              <div className="flex items-end">
+                <div className="w-80 shrink-0" aria-hidden />
+                <SectionFolderTabs
+                  sections={course.template.sections}
+                  sectionId={sectionId}
+                  locale={course.template.locale}
+                  onChange={onSectionChange}
+                />
+              </div>
+            ) : null}
+            <div className="overflow-auto rounded-b-xl rounded-tl-xl rounded-tr-xl border border-border bg-card">
             <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
               <colgroup>
                 <col className="w-28" />
@@ -329,9 +314,19 @@ export function GradebookGrid({
                 })}
               </tbody>
             </table>
+            </div>
           </div>
 
           <div className="md:hidden">
+            {course.template.sections.length > 0 ? (
+              <SectionFolderTabs
+                sections={course.template.sections}
+                sectionId={sectionId}
+                locale={course.template.locale}
+                onChange={onSectionChange}
+                className="mb-3"
+              />
+            ) : null}
             <div className="mb-3 flex gap-2 overflow-x-auto">
               {course.enrollments.map((enrollment) => (
                 <button
@@ -411,6 +406,55 @@ export function GradebookGrid({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function SectionFolderTabs({
+  sections,
+  sectionId,
+  locale,
+  onChange,
+  className,
+}: {
+  sections: TemplateSection[];
+  sectionId: string;
+  locale: Locale;
+  onChange: (sectionId: string | null) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Report card section"
+      className={cn("flex min-w-0 flex-1 flex-wrap items-end gap-1", className)}
+    >
+      {sections.map((section) => {
+        const active = section.id === sectionId;
+        return (
+          <button
+            key={section.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(section.id)}
+            className={cn(
+              "max-w-48 rounded-t-lg border px-3 text-left transition-colors",
+              active
+                ? "-mb-px border-border border-b-transparent bg-muted pb-2 pt-1.5 text-foreground"
+                : "border-transparent bg-muted/70 pb-1.5 pt-1 text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <span className="block text-xs font-semibold leading-tight">
+              {sectionTitle(section, locale)}
+            </span>
+            <span className="mt-0.5 block text-[10px] font-normal leading-tight">
+              {section.items.length} {section.items.length === 1 ? "item" : "items"}
+              {isSpecialistSection(section) ? " · specialist" : ""}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
