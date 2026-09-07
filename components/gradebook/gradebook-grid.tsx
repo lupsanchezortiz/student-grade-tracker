@@ -271,7 +271,7 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                               disabled={!canEdit}
                               value={marks[k] ?? ""}
                               onChange={(e) => onMarkChange(enrollment.id, item.id, e.target.value)}
-                              className="h-8 w-full min-w-16 rounded-md border-0 bg-transparent px-1 text-center font-mono text-sm outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:opacity-80"
+                              className="h-8 w-full min-w-16 appearance-none rounded-md border-0 bg-transparent bg-none px-1 text-center font-mono text-sm outline-none focus:bg-background focus:ring-1 focus:ring-ring disabled:opacity-80"
                             >
                               <option value="">–</option>
                               {marksForItem(course.template, item).map((mark) => (
@@ -342,7 +342,7 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                                   onChange={(e) =>
                                     onMarkChange(enrollment.id, item.id, e.target.value)
                                   }
-                                  className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm"
+                                  className="h-9 w-full appearance-none rounded-lg border border-input bg-background bg-none px-2 text-sm"
                                 >
                                   <option value="">Not marked</option>
                                   {marksForItem(course.template, item).map((mark) => (
