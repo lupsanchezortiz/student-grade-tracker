@@ -142,14 +142,14 @@ export function AppShell({
   );
 
   return (
-    <div className="flex min-h-full bg-background">
+    <div className="flex min-h-svh bg-background">
       {pref.collapsed ? <div className="hidden w-14 shrink-0 md:block" aria-hidden /> : null}
       <aside
         className={cn(
           "hidden bg-sidebar text-sidebar-foreground transition-[width] duration-150 md:block",
           pref.collapsed
             ? cn("fixed inset-y-0 left-0", flyout ? "z-50 w-64 shadow-xl" : "z-30 w-14")
-            : "relative z-20 w-64 shrink-0",
+            : "sticky top-0 z-20 h-svh w-64 shrink-0",
         )}
         onMouseEnter={onSidebarEnter}
         onMouseLeave={onSidebarLeave}
