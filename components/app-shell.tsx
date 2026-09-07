@@ -7,6 +7,8 @@ import {
   BookOpen,
   Building2,
   CalendarRange,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   FileBarChart,
   FileUp,
@@ -14,8 +16,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  PanelLeft,
-  PanelLeftClose,
   Pin,
   PinOff,
   Scale,
@@ -291,7 +291,7 @@ function SidebarBody({
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               onClick={onToggleCollapsed}
             >
-              {collapsed ? <PanelLeft className="size-3.5" /> : <PanelLeftClose className="size-3.5" />}
+              {collapsed ? <ChevronRight className="size-3.5" /> : <ChevronLeft className="size-3.5" />}
             </Button>
           </div>
         ) : null}
