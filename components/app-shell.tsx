@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   BookOpen,
   Building2,
@@ -85,6 +85,7 @@ export function AppShell({
   const pathname = usePathname();
   const [pref, setPref] = useState(sidebarPref);
   const [hovering, setHovering] = useState(false);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const siteMatch = pathname.match(/^\/sites\/([^/]+)/);
   const courseSiteHint = pathname.startsWith("/courses/")
     ? sites.find((s) => pathname.includes(s.id))
@@ -92,7 +93,8 @@ export function AppShell({
   const currentSiteId = siteMatch?.[1] ?? courseSiteHint?.id ?? user.memberships[0]?.siteId;
   const currentSite = sites.find((s) => s.id === currentSiteId);
   const showDistrict = user.isSystemAdmin;
-  const collapsed = pref.pinned ? pref.collapsed : !hovering;
+  const flyout = pref.collapsed && hovering;
+  const showFull = !pref.collapsed || flyout;
   const homeHref = user.isSystemAdmin ? "/district" : currentSite ? `/sites/${currentSite.id}` : "/";
 
   function save(next: SidebarPref) {
@@ -100,9 +102,22 @@ export function AppShell({
     writeSidebarPref(next);
   }
 
-  const sidebar = (mode: "rail" | "full") => (
+  function onSidebarEnter() {
+    if (leaveTimer.current) {
+      clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+    }
+    setHovering(true);
+  }
+
+  function onSidebarLeave() {
+    if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    leaveTimer.current = setTimeout(() => setHovering(false), 160);
+  }
+
+  const sidebar = (
     <SidebarBody
-      collapsed={mode === "rail"}
+      collapsed={!showFull}
       pinned={pref.pinned}
       showControls
       user={user}
@@ -112,7 +127,7 @@ export function AppShell({
       homeHref={homeHref}
       onToggleCollapsed={() =>
         save({
-          collapsed: mode === "full",
+          collapsed: showFull,
           pinned: pref.pinned,
         })
       }
@@ -120,7 +135,7 @@ export function AppShell({
         const nextPinned = !pref.pinned;
         save({
           pinned: nextPinned,
-          collapsed: nextPinned ? mode === "rail" : true,
+          collapsed: nextPinned ? !showFull : true,
         });
       }}
     />
@@ -128,28 +143,20 @@ export function AppShell({
 
   return (
     <div className="flex min-h-full bg-background">
+      {pref.collapsed ? <div className="hidden w-14 shrink-0 md:block" aria-hidden /> : null}
       <aside
         className={cn(
-          "hidden bg-sidebar text-sidebar-foreground md:block",
-          pref.pinned
-            ? collapsed
-              ? "w-14 shrink-0"
-              : "w-64 shrink-0"
-            : cn(
-                "fixed inset-y-0 left-0 z-40 shadow-lg transition-[width] duration-200",
-                collapsed ? "w-14" : "w-64",
-              ),
+          "hidden bg-sidebar text-sidebar-foreground transition-[width] duration-150 md:block",
+          pref.collapsed
+            ? cn("fixed inset-y-0 left-0", flyout ? "z-50 w-64 shadow-xl" : "z-30 w-14")
+            : "relative z-20 w-64 shrink-0",
         )}
-        onMouseEnter={() => {
-          if (!pref.pinned) setHovering(true);
-        }}
-        onMouseLeave={() => {
-          if (!pref.pinned) setHovering(false);
-        }}
+        onMouseEnter={onSidebarEnter}
+        onMouseLeave={onSidebarLeave}
       >
-        {sidebar(collapsed ? "rail" : "full")}
+        {sidebar}
       </aside>
-      <div className={cn("flex min-w-0 flex-1 flex-col", !pref.pinned && "md:pl-14")}>
+      <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-border bg-card/80 px-4 py-2.5 backdrop-blur md:px-6">
           <Sheet>
             <SheetTrigger className="inline-flex size-8 items-center justify-center rounded-lg md:hidden">
