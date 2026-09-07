@@ -273,7 +273,7 @@ function SidebarBody({
               type="button"
               size="icon-sm"
               variant="ghost"
-              className="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              className={sidebarControlClass}
               aria-pressed={pinned}
               aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
               title={pinned ? "Unpin sidebar" : "Pin sidebar"}
@@ -285,7 +285,7 @@ function SidebarBody({
               type="button"
               size="icon-sm"
               variant="ghost"
-              className="text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              className={sidebarControlClass}
               aria-expanded={!collapsed}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
