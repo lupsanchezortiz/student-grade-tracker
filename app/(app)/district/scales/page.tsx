@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createScaleAction } from "@/lib/actions/mutations";
+import { createScaleAction, updateScaleAction } from "@/lib/actions/mutations";
 import { listScales } from "@/lib/data/repo";
 
 export default async function ScalesPage() {
@@ -18,7 +18,7 @@ export default async function ScalesPage() {
   return (
     <div>
       <PageHeader
-        eyebrow="District office"
+        eyebrow="Report cards"
         title="Grade scales"
         description="Marks appear on every gradebook and report card that uses the scale. Labels are stored in English and Spanish."
         actions={
@@ -36,27 +36,10 @@ export default async function ScalesPage() {
                   <Input id="name" name="name" required placeholder="A–F" />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Four rows are provided. Leave unused rows blank.
+                  Five rows are provided. Leave unused rows blank.
                 </p>
                 {[0, 1, 2, 3, 4].map((i) => (
-                  <div key={i} className="grid grid-cols-12 items-end gap-2">
-                    <div className="col-span-2 space-y-1">
-                      <Label className="text-xs">Code</Label>
-                      <Input name="markCode" placeholder={["A", "B", "C", "D", "F"][i]} />
-                    </div>
-                    <div className="col-span-4 space-y-1">
-                      <Label className="text-xs">English</Label>
-                      <Input name="markLabelEn" />
-                    </div>
-                    <div className="col-span-4 space-y-1">
-                      <Label className="text-xs">Español</Label>
-                      <Input name="markLabelEs" />
-                    </div>
-                    <label className="col-span-2 mb-2 flex items-center gap-1 text-xs">
-                      <input type="checkbox" name="markPassing" value={String(i)} defaultChecked={i < 4} />
-                      Pass
-                    </label>
-                  </div>
+                  <MarkRow key={i} index={i} placeholder={["A", "B", "C", "D", "F"][i]} passDefault={i < 4} />
                 ))}
                 <Button type="submit">Save scale</Button>
               </form>
@@ -66,25 +49,86 @@ export default async function ScalesPage() {
       />
       <div className="grid gap-4 md:grid-cols-2">
         {scales.map((scale) => (
-          <div key={scale.id} className="rounded-xl border border-border bg-card p-4">
-            <h2 className="font-heading text-lg">{scale.name}</h2>
-            <ul className="mt-3 space-y-1.5 text-sm">
-              {scale.marks.map((mark) => (
-                <li key={mark.id} className="flex justify-between gap-3">
-                  <span>
-                    <span className="font-mono font-semibold">{mark.code}</span>
-                    <span className="ml-2">{mark.labelEn}</span>
-                    <span className="ml-2 text-muted-foreground">/ {mark.labelEs}</span>
-                  </span>
-                  {!mark.isPassing ? (
-                    <span className="text-xs text-destructive">Not passing</span>
-                  ) : null}
-                </li>
+          <form
+            key={scale.id}
+            action={updateScaleAction}
+            className="space-y-3 rounded-xl border border-border bg-card p-4"
+          >
+            <input type="hidden" name="id" value={scale.id} />
+            <div className="space-y-1.5">
+              <Label htmlFor={`scale-name-${scale.id}`}>Scale name</Label>
+              <Input
+                id={`scale-name-${scale.id}`}
+                name="name"
+                defaultValue={scale.name}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              {scale.marks.map((mark, i) => (
+                <MarkRow
+                  key={mark.id}
+                  index={i}
+                  markId={mark.id}
+                  code={mark.code}
+                  labelEn={mark.labelEn}
+                  labelEs={mark.labelEs}
+                  passDefault={mark.isPassing}
+                />
               ))}
-            </ul>
-          </div>
+              <MarkRow index={scale.marks.length} placeholder="+" />
+            </div>
+            <Button type="submit" variant="outline" size="sm">
+              Save scale
+            </Button>
+          </form>
         ))}
       </div>
+    </div>
+  );
+}
+
+function MarkRow({
+  index,
+  markId,
+  code,
+  labelEn,
+  labelEs,
+  placeholder,
+  passDefault = true,
+}: {
+  index: number;
+  markId?: string;
+  code?: string;
+  labelEn?: string;
+  labelEs?: string;
+  placeholder?: string;
+  passDefault?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-12 items-end gap-2">
+      <input type="hidden" name="markId" value={markId ?? ""} />
+      <div className="col-span-2 space-y-1">
+        <Label className="text-xs">Code</Label>
+        <Input name="markCode" defaultValue={code} placeholder={placeholder} className="font-mono" />
+      </div>
+      <div className="col-span-4 space-y-1">
+        <Label className="text-xs">English</Label>
+        <Input name="markLabelEn" defaultValue={labelEn} />
+      </div>
+      <div className="col-span-4 space-y-1">
+        <Label className="text-xs">Español</Label>
+        <Input name="markLabelEs" defaultValue={labelEs} />
+      </div>
+      <label className="col-span-2 mb-2 flex items-center gap-1 text-xs">
+        <input
+          type="checkbox"
+          name="markPassing"
+          value={String(index)}
+          defaultChecked={passDefault}
+        />
+        Pass
+      </label>
     </div>
   );
 }

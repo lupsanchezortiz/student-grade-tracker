@@ -22,6 +22,7 @@ import {
   setCourseTeachers,
   setEnrollments,
   updateItem,
+  updateScale,
   updateSection,
   updateSite,
   updateStudent,
@@ -102,22 +103,36 @@ export async function updateTermAction(formData: FormData) {
   revalidatePath("/district/years");
 }
 
-export async function createScaleAction(formData: FormData) {
+function marksFromForm(formData: FormData) {
+  const ids = formData.getAll("markId").map(String);
   const codes = formData.getAll("markCode").map(String);
   const labelsEn = formData.getAll("markLabelEn").map(String);
   const labelsEs = formData.getAll("markLabelEs").map(String);
   const passing = formData.getAll("markPassing").map(String);
+  return codes
+    .map((code, i) => ({
+      id: ids[i]?.trim() || undefined,
+      code,
+      labelEn: labelsEn[i] ?? code,
+      labelEs: labelsEs[i] ?? code,
+      sortOrder: i + 1,
+      isPassing: passing.includes(String(i)),
+    }))
+    .filter((m) => m.code.trim());
+}
+
+export async function createScaleAction(formData: FormData) {
   await createScale({
     name: str(formData, "name"),
-    marks: codes
-      .map((code, i) => ({
-        code,
-        labelEn: labelsEn[i] ?? code,
-        labelEs: labelsEs[i] ?? code,
-        sortOrder: i + 1,
-        isPassing: passing.includes(String(i)),
-      }))
-      .filter((m) => m.code.trim()),
+    marks: marksFromForm(formData),
+  });
+  revalidatePath("/district/scales");
+}
+
+export async function updateScaleAction(formData: FormData) {
+  await updateScale(str(formData, "id"), {
+    name: str(formData, "name"),
+    marks: marksFromForm(formData),
   });
   revalidatePath("/district/scales");
 }

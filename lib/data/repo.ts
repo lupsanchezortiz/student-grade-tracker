@@ -228,6 +228,67 @@ export async function createScale(input: {
   });
 }
 
+export async function updateScale(
+  scaleId: string,
+  input: {
+    name: string;
+    marks: {
+      id?: string;
+      code: string;
+      labelEn: string;
+      labelEs: string;
+      sortOrder: number;
+      isPassing: boolean;
+    }[];
+  },
+) {
+  const user = await requireUser();
+  assertDistrict(user);
+  if (!input.name.trim() || input.marks.length === 0) {
+    throw new Error("A scale needs a name and at least one mark.");
+  }
+  return mutateState((state) => {
+    const scale = state.scales.find((s) => s.id === scaleId);
+    if (!scale) throw new Error("Scale not found.");
+    scale.name = input.name.trim();
+    const kept = new Set<string>();
+    for (const mark of input.marks) {
+      const existing = mark.id ? state.marks.find((m) => m.id === mark.id && m.scaleId === scaleId) : undefined;
+      if (existing) {
+        existing.code = mark.code.trim();
+        existing.labelEn = mark.labelEn.trim();
+        existing.labelEs = mark.labelEs.trim();
+        existing.sortOrder = mark.sortOrder;
+        existing.isPassing = mark.isPassing;
+        kept.add(existing.id);
+        continue;
+      }
+      const created = {
+        id: id(),
+        scaleId,
+        code: mark.code.trim(),
+        labelEn: mark.labelEn.trim(),
+        labelEs: mark.labelEs.trim(),
+        sortOrder: mark.sortOrder,
+        isPassing: mark.isPassing,
+      };
+      state.marks.push(created);
+      kept.add(created.id);
+    }
+    const unused = state.marks.filter((m) => m.scaleId === scaleId && !kept.has(m.id));
+    for (const mark of unused) {
+      const inUse = state.grades.some((g) => g.markId === mark.id);
+      if (inUse) {
+        throw new Error(
+          `Cannot remove mark ${mark.code}. It is already used on a report card.`,
+        );
+      }
+    }
+    state.marks = state.marks.filter((m) => m.scaleId !== scaleId || kept.has(m.id));
+    return scale;
+  });
+}
+
 export async function listTemplates() {
   await requireUser();
   const state = loadState();
