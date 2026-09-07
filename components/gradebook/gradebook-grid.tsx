@@ -270,11 +270,24 @@ export function GradebookGrid({
                 This section has no line items yet.
               </p>
             ) : (
-            <div className="overflow-auto rounded-b-xl rounded-tl-xl rounded-tr-xl border border-border bg-card">
-            <table className="w-full min-w-max border-separate border-spacing-0 text-sm">
+            <div className="w-fit max-w-full overflow-auto rounded-b-xl rounded-tl-xl rounded-tr-xl border border-border bg-card">
+            <table className="w-max border-separate border-spacing-0 text-sm">
               <colgroup>
                 <col className="w-28" />
                 <col className="w-52" />
+                {isAttendance ? (
+                  <>
+                    <col className="w-24" />
+                    <col className="w-24" />
+                  </>
+                ) : (
+                  items.map((item) => (
+                    <col
+                      key={item.id}
+                      className={item.itemType === "comment" ? "w-72" : "w-36"}
+                    />
+                  ))
+                )}
               </colgroup>
               <thead>
                 <tr className="bg-muted/80">
@@ -282,10 +295,10 @@ export function GradebookGrid({
                   <th className={cn(stickyNameClass, "bg-muted font-medium")}>Student</th>
                   {isAttendance ? (
                     <>
-                      <th className="min-w-24 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium">
+                      <th className="box-border w-24 min-w-24 max-w-24 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium">
                         Absences
                       </th>
-                      <th className="min-w-24 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium">
+                      <th className="box-border w-24 min-w-24 max-w-24 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium">
                         Tardies
                       </th>
                     </>
@@ -293,7 +306,12 @@ export function GradebookGrid({
                     items.map((item) => (
                       <th
                         key={item.id}
-                        className="min-w-24 max-w-40 border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium leading-tight"
+                        className={cn(
+                          "border-b border-l border-border px-1.5 py-2 text-center text-xs font-medium leading-tight",
+                          item.itemType === "comment"
+                            ? "w-72 min-w-72"
+                            : "box-border w-36 min-w-36 max-w-36",
+                        )}
                       >
                         {itemTitle(item, course.template.locale)}
                       </th>
@@ -337,6 +355,9 @@ export function GradebookGrid({
                               key={item.id}
                               className={cn(
                                 "border-b border-l border-border p-1",
+                                item.itemType === "comment"
+                                  ? "min-w-72"
+                                  : "box-border w-36 min-w-36 max-w-36",
                                 !itemEditable && "bg-muted/40",
                                 status === "saving" && "bg-amber-50",
                                 status === "error" && "bg-red-50",
@@ -509,7 +530,7 @@ function folderTabClass(active: boolean) {
 
 function AttendanceCell({ value }: { value: number | undefined }) {
   return (
-    <td className="border-b border-l border-border bg-muted/40 px-2 py-2 text-center">
+    <td className="box-border w-24 min-w-24 max-w-24 border-b border-l border-border bg-muted/40 px-2 py-2 text-center">
       <span className="font-mono text-sm tabular-nums">
         {value == null ? "—" : value}
       </span>
