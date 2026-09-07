@@ -17,6 +17,11 @@ function key(enrollmentId: string, itemId: string) {
   return `${enrollmentId}:${itemId}`;
 }
 
+const stickyIdClass =
+  "sticky left-0 z-20 box-border w-28 min-w-28 max-w-28 overflow-hidden border-b border-r border-border px-2.5 py-2 text-left align-middle whitespace-nowrap";
+const stickyNameClass =
+  "sticky left-28 z-20 box-border w-52 min-w-52 max-w-52 overflow-hidden border-b border-r border-border px-3 py-2 text-left align-middle whitespace-nowrap shadow-[2px_0_6px_-2px_rgba(15,23,42,0.18)]";
+
 export function GradebookGrid({ book }: { book: GradebookPayload }) {
   const { course, term, terms, canPrint, grades, editableItemIds } = book;
   const editable = useMemo(() => new Set(editableItemIds ?? []), [editableItemIds]);
@@ -143,13 +148,17 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
       ) : (
         <>
           <div className="hidden overflow-auto rounded-xl border border-border bg-card md:block">
-            <table className="min-w-max border-collapse text-sm">
+            <table className="min-w-max border-separate border-spacing-0 text-sm">
+              <colgroup>
+                <col className="w-28" />
+                <col className="w-52" />
+              </colgroup>
               <thead>
                 <tr className="bg-muted/80">
-                  <th
-                    rowSpan={2}
-                    className="sticky left-0 z-20 min-w-48 border-b border-r border-border bg-muted px-3 py-2 text-left font-medium"
-                  >
+                  <th rowSpan={2} className={cn(stickyIdClass, "bg-muted font-medium")}>
+                    Student ID
+                  </th>
+                  <th rowSpan={2} className={cn(stickyNameClass, "bg-muted font-medium")}>
                     Student
                   </th>
                   {course.template.sections.map((section) => (
@@ -181,9 +190,20 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                 </tr>
               </thead>
               <tbody>
-                {course.enrollments.map((enrollment, rowIndex) => (
-                  <tr key={enrollment.id} className={rowIndex % 2 ? "bg-muted/25" : "bg-card"}>
-                    <th className="sticky left-0 z-10 border-r border-b border-border bg-inherit px-3 py-1.5 text-left font-medium">
+                {course.enrollments.map((enrollment, rowIndex) => {
+                  const stripe = rowIndex % 2 ? "bg-muted" : "bg-card";
+                  return (
+                    <tr key={enrollment.id} className={rowIndex % 2 ? "bg-muted/25" : "bg-card"}>
+                    <th
+                      className={cn(
+                        stickyIdClass,
+                        "z-10 py-1.5 font-mono text-xs font-medium text-muted-foreground",
+                        stripe,
+                      )}
+                    >
+                      {enrollment.student.studentNumber}
+                    </th>
+                    <th className={cn(stickyNameClass, "z-10 py-1.5 font-medium", stripe)}>
                       {studentName(enrollment.student)}
                     </th>
                     {items.map((item) => {
@@ -232,8 +252,9 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                         </td>
                       );
                     })}
-                  </tr>
-                ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -245,6 +266,7 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
                   key={enrollment.studentId}
                   type="button"
                   onClick={() => setOpenStudent(enrollment.studentId)}
+                  title={enrollment.student.studentNumber}
                   className={cn(
                     "shrink-0 rounded-full border px-3 py-1 text-sm",
                     openStudent === enrollment.studentId
@@ -260,7 +282,12 @@ export function GradebookGrid({ book }: { book: GradebookPayload }) {
               .filter((e) => e.studentId === openStudent)
               .map((enrollment) => (
                 <div key={enrollment.id} className="space-y-4">
-                  <h3 className="font-heading text-lg">{studentName(enrollment.student)}</h3>
+                  <div>
+                    <h3 className="font-heading text-lg">{studentName(enrollment.student)}</h3>
+                    <p className="font-mono text-xs text-muted-foreground">
+                      Student ID {enrollment.student.studentNumber}
+                    </p>
+                  </div>
                   {course.template.sections.map((section) => (
                     <div key={section.id} className="rounded-xl border border-border bg-card p-3">
                       <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
