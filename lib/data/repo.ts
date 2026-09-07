@@ -703,6 +703,12 @@ export async function listCourses(siteId: string) {
     .filter((c): c is NonNullable<typeof c> => Boolean(c));
 }
 
+export async function listDistrictCourses() {
+  const user = await requireUser();
+  assertDistrict(user);
+  return myCourses();
+}
+
 export async function myCourses() {
   const user = await requireUser();
   const state = loadState();

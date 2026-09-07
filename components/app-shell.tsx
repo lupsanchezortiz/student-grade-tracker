@@ -8,6 +8,7 @@ import {
   Building2,
   CalendarRange,
   ClipboardList,
+  FileBarChart,
   FileUp,
   GraduationCap,
   LayoutDashboard,
@@ -42,14 +43,27 @@ import {
 import { cn } from "@/lib/utils";
 
 type NavItem = { href: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type NavGroup = NavItem & { children: NavItem[] };
+type NavEntry = NavItem | NavGroup;
 
-function districtNav(): NavItem[] {
+function isNavGroup(entry: NavEntry): entry is NavGroup {
+  return "children" in entry && Array.isArray(entry.children);
+}
+
+function districtNav(): NavEntry[] {
   return [
     { href: "/district", label: "Overview", icon: LayoutDashboard },
     { href: "/district/sites", label: "Schools", icon: Building2 },
     { href: "/district/years", label: "School years", icon: CalendarRange },
-    { href: "/district/scales", label: "Grade scales", icon: Scale },
-    { href: "/district/templates", label: "Report cards", icon: ClipboardList },
+    {
+      href: "/district/templates",
+      label: "Report cards",
+      icon: ClipboardList,
+      children: [
+        { href: "/district/scales", label: "Grade scales", icon: Scale },
+        { href: "/district/reports", label: "Report card reports", icon: FileBarChart },
+      ],
+    },
     { href: "/district/import", label: "CSV import", icon: FileUp },
   ];
 }
@@ -292,11 +306,11 @@ function SidebarBody({
             )}
             <nav className="flex flex-col gap-0.5">
               {districtNav().map((item) => (
-                <SideLink
+                <DistrictNavEntry
                   key={item.href}
-                  item={item}
+                  entry={item}
                   collapsed={collapsed}
-                  active={isActivePath(pathname, item.href) || pathname === item.href}
+                  pathname={pathname}
                 />
               ))}
             </nav>
@@ -352,6 +366,38 @@ function SidebarBody({
           </Button>
         </form>
       </div>
+    </div>
+  );
+}
+
+function DistrictNavEntry({
+  entry,
+  collapsed,
+  pathname,
+}: {
+  entry: NavEntry;
+  collapsed: boolean;
+  pathname: string;
+}) {
+  const parentActive = isActivePath(pathname, entry.href) || pathname === entry.href;
+  if (!isNavGroup(entry)) {
+    return <SideLink item={entry} collapsed={collapsed} active={parentActive} />;
+  }
+  return (
+    <div>
+      <SideLink item={entry} collapsed={collapsed} active={parentActive} />
+      {collapsed ? null : (
+        <div className="mt-0.5 ml-4 space-y-0.5 border-l border-sidebar-border/70 pl-2">
+          {entry.children.map((child) => (
+            <SideLink
+              key={child.href}
+              item={child}
+              collapsed={false}
+              active={isActivePath(pathname, child.href) || pathname === child.href}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
