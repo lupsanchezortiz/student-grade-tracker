@@ -1,4 +1,4 @@
-import type { Term, TermStructure } from "@/lib/types";
+import type { StoreState, Term, TermStructure } from "@/lib/types";
 
 type TermBlueprint = { nameEn: string; nameEs: string };
 
@@ -34,6 +34,7 @@ function daysBetween(a: string, b: string) {
 
 export function buildTerms(
   academicYearId: string,
+  siteId: string,
   structure: TermStructure,
   startDate: string,
   endDate: string,
@@ -46,6 +47,7 @@ export function buildTerms(
     const end = i === parts.length - 1 ? endDate : addDays(startDate, slice * (i + 1));
     return {
       academicYearId,
+      siteId,
       sortOrder: i + 1,
       nameEn: part.nameEn,
       nameEs: part.nameEs,
@@ -53,6 +55,25 @@ export function buildTerms(
       endDate: end,
     };
   });
+}
+
+export function structureFromTermCount(count: number): TermStructure {
+  if (count <= 2) return "semester";
+  if (count >= 4) return "quarter";
+  return "trimester";
+}
+
+export function termsForSiteYear(state: StoreState, siteId: string, yearId: string) {
+  return state.terms
+    .filter((term) => term.academicYearId === yearId && term.siteId === siteId)
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+export function siteTermStructure(state: StoreState, siteId: string, yearId: string) {
+  const terms = termsForSiteYear(state, siteId, yearId);
+  if (terms.length === 0) return null;
+  return structureFromTermCount(terms.length);
 }
 
 export { STRUCTURES as TERM_STRUCTURE_LABELS };

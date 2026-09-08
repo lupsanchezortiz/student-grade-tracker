@@ -31,7 +31,7 @@ export default async function YearsPage() {
       <PageHeader
         eyebrow="District office"
         title="School years"
-        description="Choose semester, trimester, or quarter. Term names are stored in English and Spanish for report cards."
+        description="Set the district calendar window. Each school sets its own terms (semester, trimester, or quarter) for that year."
         actions={
           <Dialog>
             <DialogTrigger className="inline-flex h-8 items-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground">
@@ -56,20 +56,10 @@ export default async function YearsPage() {
                     <Input id="endDate" name="endDate" type="date" required />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="termStructure">Structure</Label>
-                  <select
-                    id="termStructure"
-                    name="termStructure"
-                    className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
-                    defaultValue="trimester"
-                  >
-                    <option value="semester">Semesters (2)</option>
-                    <option value="trimester">Trimesters (3)</option>
-                    <option value="quarter">Quarters (4)</option>
-                  </select>
-                </div>
-                <Button type="submit">Create year and terms</Button>
+                <p className="text-xs text-muted-foreground">
+                  Site administrators choose grading periods after you create the year.
+                </p>
+                <Button type="submit">Create year</Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -78,7 +68,7 @@ export default async function YearsPage() {
       {years.length === 0 ? (
         <EmptyState
           title="No school year yet"
-          description="Create 2027–28 (or the current year) and pick how the year is divided. Sites cannot open courses until a year exists."
+          description="Create 2027–28 (or the current year). Sites cannot set terms or open courses until a year exists."
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -86,7 +76,6 @@ export default async function YearsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Year</TableHead>
-                <TableHead>Structure</TableHead>
                 <TableHead>Dates</TableHead>
                 <TableHead />
               </TableRow>
@@ -95,7 +84,6 @@ export default async function YearsPage() {
               {years.map((year) => (
                 <TableRow key={year.id}>
                   <TableCell className="font-medium">{year.name}</TableCell>
-                  <TableCell className="capitalize">{year.termStructure}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {formatDate(year.startDate)} – {formatDate(year.endDate)}
                   </TableCell>
@@ -104,7 +92,7 @@ export default async function YearsPage() {
                       href={`/district/years/${year.id}`}
                       className="text-sm text-primary hover:underline"
                     >
-                      Edit terms
+                      Edit year
                     </Link>
                   </TableCell>
                 </TableRow>

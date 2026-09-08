@@ -143,9 +143,8 @@ const YEARS: AcademicYear[] = [
   },
 ];
 
-const TERMS: Term[] = [
+const MAPLE_TERMS: Omit<Term, "id" | "siteId">[] = [
   {
-    id: IDS.term1,
     academicYearId: IDS.year2627,
     sortOrder: 1,
     nameEn: "Trimester 1",
@@ -154,7 +153,6 @@ const TERMS: Term[] = [
     endDate: "2026-11-13",
   },
   {
-    id: IDS.term2,
     academicYearId: IDS.year2627,
     sortOrder: 2,
     nameEn: "Trimester 2",
@@ -163,7 +161,6 @@ const TERMS: Term[] = [
     endDate: "2027-03-05",
   },
   {
-    id: IDS.term3,
     academicYearId: IDS.year2627,
     sortOrder: 3,
     nameEn: "Trimester 3",
@@ -171,6 +168,15 @@ const TERMS: Term[] = [
     startDate: "2027-03-08",
     endDate: "2027-06-11",
   },
+];
+
+const TERMS: Term[] = [
+  { ...MAPLE_TERMS[0], id: IDS.term1, siteId: IDS.siteMaple },
+  { ...MAPLE_TERMS[1], id: IDS.term2, siteId: IDS.siteMaple },
+  { ...MAPLE_TERMS[2], id: IDS.term3, siteId: IDS.siteMaple },
+  { ...MAPLE_TERMS[0], id: IDS.termCedar1, siteId: IDS.siteCedar },
+  { ...MAPLE_TERMS[1], id: IDS.termCedar2, siteId: IDS.siteCedar },
+  { ...MAPLE_TERMS[2], id: IDS.termCedar3, siteId: IDS.siteCedar },
 ];
 
 const SCALES: GradeScale[] = [{ id: IDS.scaleEsnu, name: "E / S / N / U" }];

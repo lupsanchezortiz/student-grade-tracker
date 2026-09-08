@@ -76,6 +76,7 @@ function siteNav(siteId: string): NavItem[] {
     { href: `/sites/${siteId}`, label: "Overview", icon: LayoutDashboard },
     { href: `/sites/${siteId}/students`, label: "Students", icon: Users },
     { href: `/sites/${siteId}/staff`, label: "Staff", icon: UsersRound },
+    { href: `/sites/${siteId}/terms`, label: "Terms", icon: CalendarRange },
     { href: `/sites/${siteId}/courses`, label: "Courses", icon: BookOpen },
   ];
 }

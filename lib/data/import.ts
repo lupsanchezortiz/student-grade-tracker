@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth/session";
 import { assertDistrict, assertSiteAdmin } from "@/lib/data/access";
 import { findTemplateForGrade } from "@/lib/data/hydrate";
+import { siteTermStructure, termsForSiteYear } from "@/lib/data/terms";
 import { mutateState } from "@/lib/data/store";
 import { csvCell, parseCsv, type CsvRow, type ImportResult } from "@/lib/csv/parse";
 import type { ImportKind } from "@/lib/csv/samples";
@@ -216,11 +217,20 @@ export async function importCoursesCsv(csv: string, lockedSiteId?: string) {
         result.skipped++;
         return;
       }
-      const template = findTemplateForGrade(state, year.id, grade.id);
+      const structure = siteTermStructure(state, site.id, year.id);
+      if (!structure) {
+        result.errors.push({
+          row: rowNo,
+          message: `Set terms for ${site.code} in ${year.name} before importing courses.`,
+        });
+        result.skipped++;
+        return;
+      }
+      const template = findTemplateForGrade(state, year.id, grade.id, structure);
       if (!template) {
         result.errors.push({
           row: rowNo,
-          message: `No published report card for ${grade.nameEn} in ${year.name}.`,
+          message: `No published ${structure} report card for ${grade.nameEn} in ${year.name}.`,
         });
         result.skipped++;
         return;
@@ -445,8 +455,8 @@ export async function importTemplateItemsCsv(templateId: string, csv: string) {
   return mutateState((state) => applyTemplateItemsImport(state, templateId, rows));
 }
 
-function findTerm(state: StoreState, yearId: string, raw: string): Term | undefined {
-  const terms = state.terms.filter((t) => t.academicYearId === yearId);
+function findTerm(state: StoreState, siteId: string, yearId: string, raw: string): Term | undefined {
+  const terms = termsForSiteYear(state, siteId, yearId);
   const value = raw.trim().toLowerCase();
   if (!value) return undefined;
   const byName = terms.find(
@@ -499,7 +509,7 @@ export async function importAttendanceCsv(csv: string, lockedSiteId?: string) {
         return;
       }
       const year = findYear(state, csvCell(row, "year", "academic_year"));
-      const term = year ? findTerm(state, year.id, csvCell(row, "term", "period")) : undefined;
+      const term = year ? findTerm(state, site.id, year.id, csvCell(row, "term", "period")) : undefined;
       const number = csvCell(row, "student_number", "id");
       if (!year || !term || !number) {
         result.errors.push({

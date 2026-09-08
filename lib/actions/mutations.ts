@@ -11,6 +11,7 @@ import {
   createSite,
   createStudent,
   cloneTemplateLanguage,
+  createSiteTerms,
   createTemplate,
   createYear,
   deleteItem,
@@ -89,7 +90,6 @@ export async function createYearAction(formData: FormData) {
     name: str(formData, "name"),
     startDate: str(formData, "startDate"),
     endDate: str(formData, "endDate"),
-    termStructure: str(formData, "termStructure") as TermStructure,
   });
   revalidatePath("/district/years");
 }
@@ -105,13 +105,23 @@ export async function updateYearAction(formData: FormData) {
 }
 
 export async function updateTermAction(formData: FormData) {
-  await updateTerm(str(formData, "id"), {
+  const term = await updateTerm(str(formData, "id"), {
     nameEn: str(formData, "nameEn"),
     nameEs: str(formData, "nameEs"),
     startDate: str(formData, "startDate"),
     endDate: str(formData, "endDate"),
   });
-  revalidatePath("/district/years");
+  revalidatePath(`/sites/${term.siteId}/terms`);
+  revalidatePath(`/sites/${term.siteId}/terms/${term.academicYearId}`);
+}
+
+export async function createSiteTermsAction(formData: FormData) {
+  const siteId = str(formData, "siteId");
+  const yearId = str(formData, "yearId");
+  await createSiteTerms(siteId, yearId, parseTermStructure(str(formData, "termStructure")));
+  revalidatePath(`/sites/${siteId}/terms`);
+  revalidatePath(`/sites/${siteId}/terms/${yearId}`);
+  revalidatePath(`/sites/${siteId}/courses`);
 }
 
 function marksFromForm(formData: FormData) {

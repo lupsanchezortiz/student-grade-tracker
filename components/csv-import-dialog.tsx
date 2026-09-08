@@ -97,7 +97,7 @@ export function CsvImportDialog({
         {kind === "template_items" ? (
           <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">print_code</span> is the line number
-            (01, 02, 08), not the HTML tag. Tags expand from the school year’s terms:
+            (01, 02, 08), not the HTML tag. Tags expand from the school’s terms:
             trimesters use <span className="font-mono">{"{{101}} {{201}} {{301}}"}</span>,
             semesters two terms, quarters four (
             <span className="font-mono">{"{{401}}"}</span>). Match existing items by line

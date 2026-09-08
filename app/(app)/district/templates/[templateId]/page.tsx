@@ -152,7 +152,7 @@ export default async function TemplateDetailPage({
       <div className="mb-10">
         <DocumentHtmlEditor template={template}>
       <p className="mb-3 text-sm text-muted-foreground">
-        This card is for a {TERM_STRUCTURE_NAMES[template.termStructure].toLowerCase()} year.
+        This card is for a {TERM_STRUCTURE_NAMES[template.termStructure].toLowerCase()} school calendar.
         Line number 01 becomes{" "}
         <span className="font-mono">
           {previewTermMergeTags(1, template.termStructure).join(" ")}

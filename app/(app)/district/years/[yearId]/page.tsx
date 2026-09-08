@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateTermAction, updateYearAction } from "@/lib/actions/mutations";
+import { updateYearAction } from "@/lib/actions/mutations";
 import { getYear } from "@/lib/data/repo";
 
 export default async function YearDetailPage({
@@ -24,7 +24,7 @@ export default async function YearDetailPage({
       <PageHeader
         eyebrow="School year"
         title={data.year.name}
-        description="Adjust the year window and the bilingual names and dates for each term."
+        description="This window is district-wide. Each school sets its own term names and dates on the Terms page."
       />
       <form
         action={updateYearAction}
@@ -57,46 +57,8 @@ export default async function YearDetailPage({
             />
           </div>
         </div>
-        <p className="text-sm text-muted-foreground capitalize">
-          Structure: {data.year.termStructure}
-        </p>
         <Button type="submit">Save year</Button>
       </form>
-      <div className="space-y-4">
-        {data.terms.map((term) => (
-          <form
-            key={term.id}
-            action={updateTermAction}
-            className="space-y-3 rounded-xl border border-border bg-card p-4"
-          >
-            <input type="hidden" name="id" value={term.id} />
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Term {term.sortOrder}
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>English name</Label>
-                <Input name="nameEn" defaultValue={term.nameEn} required />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Nombre en español</Label>
-                <Input name="nameEs" defaultValue={term.nameEs} required />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Starts</Label>
-                <Input name="startDate" type="date" defaultValue={term.startDate} required />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Ends</Label>
-                <Input name="endDate" type="date" defaultValue={term.endDate} required />
-              </div>
-            </div>
-            <Button type="submit" variant="outline">
-              Save term
-            </Button>
-          </form>
-        ))}
-      </div>
     </div>
   );
 }

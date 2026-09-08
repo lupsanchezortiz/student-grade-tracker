@@ -4,6 +4,7 @@ import { normalizeLayout } from "@/lib/data/layout";
 import { createSeedState } from "@/lib/data/seed";
 import { parseLocale } from "@/lib/data/template-doc";
 import { parseTermStructure } from "@/lib/data/terms";
+import { ensureSiteOwnedTerms } from "@/lib/data/site-terms";
 import {
   ensureKindergarten,
   ensureKindergartenScales,
@@ -23,7 +24,14 @@ function clone<T>(value: T): T {
 }
 
 export function loadState(): StoreState {
-  if (memory) return memory;
+  if (memory) {
+    const needed = memory.terms.some((term) => !term.siteId);
+    if (needed) {
+      ensureSiteOwnedTerms(memory);
+      persist(memory);
+    }
+    return memory;
+  }
   try {
     if (existsSync(DATA_FILE)) {
       memory = migrateState(JSON.parse(readFileSync(DATA_FILE, "utf8")) as StoreState);
@@ -86,6 +94,7 @@ function migrateState(state: StoreState): StoreState {
   ensureKindergarten(state);
   ensureKindergartenScales(state);
   ensureSpecialistGrading(state);
+  ensureSiteOwnedTerms(state);
   return state;
 }
 

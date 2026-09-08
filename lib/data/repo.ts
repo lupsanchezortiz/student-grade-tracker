@@ -14,12 +14,17 @@ import {
 import { findTemplateForGrade, hydrateCourse, hydrateTemplate } from "@/lib/data/hydrate";
 import { defaultLayout, normalizeLayout } from "@/lib/data/layout";
 import { parseLocale, pairItemIds, siblingTemplates } from "@/lib/data/template-doc";
-import { parseTermStructure, termStructureName } from "@/lib/data/terms";
+import {
+  buildTerms,
+  parseTermStructure,
+  siteTermStructure,
+  termsForSiteYear,
+  termStructureName,
+} from "@/lib/data/terms";
 import { normalizePrintCode } from "@/lib/documents/print-code";
 import { sanitizeTemplateHtml } from "@/lib/documents/sanitize";
 import type { TemplateLayout } from "@/lib/types";
 import { loadState, mutateState, resetState } from "@/lib/data/store";
-import { buildTerms } from "@/lib/data/terms";
 import type {
   AcademicYear,
   AttendanceRecord,
@@ -38,6 +43,7 @@ import type {
   TemplateSection,
   Term,
   TermStructure,
+  StoreState,
 } from "@/lib/types";
 
 const id = () => crypto.randomUUID();
@@ -115,17 +121,44 @@ export async function getYear(yearId: string) {
   const state = loadState();
   const year = state.years.find((y) => y.id === yearId);
   if (!year) throw new Error("School year not found.");
-  const terms = state.terms
-    .filter((t) => t.academicYearId === yearId)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-  return { year, terms };
+  return { year, terms: [] };
+}
+
+export async function listSiteYears(siteId: string) {
+  const user = await requireUser();
+  assertSiteView(user, siteId);
+  const state = loadState();
+  return state.years
+    .slice()
+    .sort((a, b) => b.startDate.localeCompare(a.startDate))
+    .map((year) => {
+      const terms = termsForSiteYear(state, siteId, year.id);
+      return {
+        year,
+        terms,
+        termStructure: siteTermStructure(state, siteId, year.id),
+      };
+    });
+}
+
+export async function getSiteYear(siteId: string, yearId: string) {
+  const user = await requireUser();
+  assertSiteView(user, siteId);
+  const state = loadState();
+  const year = state.years.find((y) => y.id === yearId);
+  if (!year) throw new Error("School year not found.");
+  return {
+    year,
+    terms: termsForSiteYear(state, siteId, yearId),
+    termStructure: siteTermStructure(state, siteId, yearId),
+    canEdit: canImportAttendance(user, siteId),
+  };
 }
 
 export async function createYear(input: {
   name: string;
   startDate: string;
   endDate: string;
-  termStructure: TermStructure;
 }) {
   const user = await requireUser();
   assertDistrict(user);
@@ -138,19 +171,34 @@ export async function createYear(input: {
       name: input.name.trim(),
       startDate: input.startDate,
       endDate: input.endDate,
-      termStructure: input.termStructure,
     };
     state.years.push(year);
-    const terms = buildTerms(
-      year.id,
-      input.termStructure,
-      input.startDate,
-      input.endDate,
-    );
-    for (const term of terms) {
+    return year;
+  });
+}
+
+export async function createSiteTerms(
+  siteId: string,
+  yearId: string,
+  structure: TermStructure,
+) {
+  const user = await requireUser();
+  assertSiteAdmin(user, siteId);
+  return mutateState((state) => {
+    const year = state.years.find((y) => y.id === yearId);
+    if (!year) throw new Error("School year not found.");
+    const existing = termsForSiteYear(state, siteId, yearId);
+    if (existing.length > 0) {
+      const used = termIdsHaveMarks(state, existing.map((term) => term.id));
+      if (used) {
+        throw new Error("This school already has marks on these terms. Dates and names can still be edited.");
+      }
+      state.terms = state.terms.filter((term) => !existing.includes(term));
+    }
+    for (const term of buildTerms(year.id, siteId, structure, year.startDate, year.endDate)) {
       state.terms.push({ ...term, id: id() });
     }
-    return year;
+    return termsForSiteYear(state, siteId, yearId);
   });
 }
 
@@ -175,16 +223,24 @@ export async function updateTerm(
   input: { nameEn: string; nameEs: string; startDate: string; endDate: string },
 ) {
   const user = await requireUser();
-  assertDistrict(user);
   return mutateState((state) => {
     const term = state.terms.find((t) => t.id === termId);
     if (!term) throw new Error("Term not found.");
+    assertSiteAdmin(user, term.siteId);
     term.nameEn = input.nameEn.trim();
     term.nameEs = input.nameEs.trim();
     term.startDate = input.startDate;
     term.endDate = input.endDate;
     return term;
   });
+}
+
+function termIdsHaveMarks(state: StoreState, termIds: string[]) {
+  const ids = new Set(termIds);
+  return (
+    state.grades.some((grade) => ids.has(grade.termId)) ||
+    (state.attendance ?? []).some((row) => ids.has(row.termId))
+  );
 }
 
 export async function listGradeLevels() {
@@ -822,16 +878,20 @@ export async function createCourse(
   const user = await requireUser();
   assertSiteAdmin(user, siteId);
   return mutateState((state) => {
+    const structure = siteTermStructure(state, siteId, input.academicYearId);
+    if (!structure) {
+      throw new Error("Set this school’s terms for that year before opening a course.");
+    }
     const template = findTemplateForGrade(
       state,
       input.academicYearId,
       input.gradeLevelId,
+      structure,
     );
     if (!template) {
-      const year = state.years.find((y) => y.id === input.academicYearId);
-      const periods = year ? termStructureName(year.termStructure).toLowerCase() : "this";
+      const periods = termStructureName(structure).toLowerCase();
       throw new Error(
-        `District has not published a ${periods} report card for this grade. The card’s grading periods must match the school year.`,
+        `District has not published a ${periods} report card for this grade. The card’s grading periods must match this school’s terms.`,
       );
     }
     const course: Course = {
@@ -915,15 +975,14 @@ export async function getGradebook(courseId: string, termId?: string) {
   const state = loadState();
   const course = hydrateCourse(state, courseId);
   if (!course || !canViewCourse(user, state, courseId)) notFound();
-  const terms = state.terms
-    .filter((t) => t.academicYearId === course.academicYearId)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const terms = termsForSiteYear(state, course.siteId, course.academicYearId);
   const term =
     terms.find((t) => t.id === termId) ??
     terms[0] ??
     ({
       id: "none",
       academicYearId: course.academicYearId,
+      siteId: course.siteId,
       sortOrder: 1,
       nameEn: "Term",
       nameEs: "Periodo",

@@ -38,7 +38,7 @@ export default async function CoursesPage({
       <PageHeader
         eyebrow={site.name}
         title="Courses"
-        description="A course uses the published card for that grade whose grading periods match the school year. School and year print from the course."
+        description="A course uses the published card for that grade whose grading periods match this school’s terms. Set terms before opening a course."
         actions={
           <>
           {canImport ? <CsvImportDialog kind="courses" siteId={siteId} /> : null}
@@ -86,7 +86,8 @@ export default async function CoursesPage({
                     </select>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    The district must have a published template assigned to this grade.
+                    Set this school’s terms first. The district must have a published card for this
+                    grade that matches those grading periods.
                   </p>
                   <Button type="submit">Create gradebook</Button>
                 </form>

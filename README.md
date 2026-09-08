@@ -1,13 +1,13 @@
 # Northside Unified — student information
 
-A district student information system: the **district office** owns the school year, grade scales, and bilingual report-card templates. Each **school site** enrolls its own students, opens courses from those templates, and keeps a spreadsheet gradebook (students as rows, report-card items as columns). Teachers print English or Spanish cards from those marks — either a built-in PDF or a PowerSchool-style HTML document.
+A district student information system: the **district office** owns the school year, grade scales, and bilingual report-card templates. Each **school site** sets its own terms for that year, enrolls students, opens courses from those templates, and keeps a spreadsheet gradebook (students as rows, report-card items as columns). Teachers print English or Spanish cards from those marks — either a built-in PDF or a PowerSchool-style HTML document.
 
 ## Roles
 
 | Role | What they do |
 | --- | --- |
-| System admin | Schools, school years, grade scales, report-card templates (EN/ES), CSV import for any school, template line-item import |
-| Site admin | Students, staff, courses, and attendance (CSV for this school only), enrollment, teacher permissions |
+| System admin | Schools, school years (dates only), grade scales, report-card templates (EN/ES), CSV import for any school, template line-item import |
+| Site admin | Terms for each school year, students, staff, courses, and attendance (CSV for this school only), enrollment, teacher permissions |
 | Teacher | Grade assigned courses, print report cards |
 
 ## Run locally
@@ -40,12 +40,13 @@ Without those env vars, demo mode stays on so you can use the product immediatel
 
 ## How a gradebook is created
 
-1. District creates a school year and its grading periods (trimester, semester, or quarter).
-2. District creates grade scales and a report-card template for one language and one grading-period type. School year is not stored on the template — `{{SCHOOL}}` and `{{YEAR}}` fill from the course.
-3. District assigns the template to grade levels, sets a scale on each mark item, and publishes it.
-4. The site creates a course for that grade and year. Only a published card whose grading periods match the year will attach.
-5. The site enrolls students and grants teachers grade/print permission. Mark a template section as specialist-entered so homeroom can view those columns but not change them; assign that section to the specialist on the course.
-6. Homeroom teachers enter classroom marks. Specialist teachers enter specials (PE, art, and the rest). Site administrators load absences and tardies from CSV; the gradebook Attendance tab is view-only for teachers. Print uses the template HTML (all terms) or the built-in PDF if HTML is empty.
+1. District creates a school year (name and start/end dates).
+2. Each site sets its own terms for that year (semester, trimester, or quarter, plus names and dates).
+3. District creates grade scales and a report-card template for one language and one grading-period type. School year is not stored on the template — `{{SCHOOL}}` and `{{YEAR}}` fill from the course.
+4. District assigns the template to grade levels, sets a scale on each mark item, and publishes it.
+5. The site creates a course for that grade and year. Only a published card whose grading periods match **this school’s terms** will attach.
+6. The site enrolls students and grants teachers grade/print permission. Mark a template section as specialist-entered so homeroom can view those columns but not change them; assign that section to the specialist on the course.
+7. Homeroom teachers enter classroom marks. Specialist teachers enter specials (PE, art, and the rest). Site administrators load absences and tardies from CSV; the gradebook Attendance tab is view-only for teachers. Print uses the template HTML (all terms) or the built-in PDF if HTML is empty.
 
 ## HTML documents (PowerSchool-style)
 

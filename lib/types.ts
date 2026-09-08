@@ -34,12 +34,14 @@ export type AcademicYear = {
   name: string;
   startDate: string;
   endDate: string;
-  termStructure: TermStructure;
+  /** Legacy district default. Sites now own terms; used only while migrating old stores. */
+  termStructure?: TermStructure;
 };
 
 export type Term = {
   id: string;
   academicYearId: string;
+  siteId: string;
   sortOrder: number;
   nameEn: string;
   nameEs: string;

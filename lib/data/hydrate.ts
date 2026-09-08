@@ -6,6 +6,7 @@ import type {
   StoreState,
   TemplateDetail,
   TemplateItem,
+  TermStructure,
 } from "@/lib/types";
 
 function marksByScale(state: StoreState): Record<string, GradeScaleMark[]> {
@@ -118,9 +119,11 @@ export function findTemplateForGrade(
   state: StoreState,
   academicYearId: string,
   gradeLevelId: string,
+  termStructure?: TermStructure,
 ) {
   const year = state.years.find((y) => y.id === academicYearId);
   if (!year) return undefined;
+  const structure = termStructure ?? year.termStructure ?? "trimester";
   const ids = state.templateGradeLevels
     .filter((x) => x.gradeLevelId === gradeLevelId)
     .map((x) => x.templateId);
@@ -129,7 +132,7 @@ export function findTemplateForGrade(
       (t) =>
         t.status === "published" &&
         ids.includes(t.id) &&
-        (t.termStructure ?? year.termStructure) === year.termStructure,
+        (t.termStructure ?? structure) === structure,
     )
     .sort((a, b) => {
       if (a.locale === b.locale) return 0;
