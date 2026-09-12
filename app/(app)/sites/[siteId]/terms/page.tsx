@@ -18,7 +18,7 @@ export default async function SiteTermsPage({
       <PageHeader
         eyebrow={site.name}
         title="Terms"
-        description="The district sets the school year. This school chooses semester, trimester, or quarter and the dates that print on report cards."
+        description="The district sets the school year. A site or district administrator chooses semester, trimester, or quarter and the dates that print on report cards."
       />
       {years.length === 0 ? (
         <EmptyState

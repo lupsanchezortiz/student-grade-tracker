@@ -31,7 +31,7 @@ export default async function YearsPage() {
       <PageHeader
         eyebrow="District office"
         title="School years"
-        description="Set the district calendar window. Each school sets its own terms (semester, trimester, or quarter) for that year."
+        description="Set the district calendar window. Open a year to set terms for each school, or leave that to the site administrator."
         actions={
           <Dialog>
             <DialogTrigger className="inline-flex h-8 items-center rounded-lg bg-primary px-2.5 text-sm font-medium text-primary-foreground">
@@ -57,7 +57,7 @@ export default async function YearsPage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Site administrators choose grading periods after you create the year.
+                  After you create the year, set terms for each school or let the site administrator do it.
                 </p>
                 <Button type="submit">Create year</Button>
               </form>

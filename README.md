@@ -6,8 +6,8 @@ A district student information system: the **district office** owns the school y
 
 | Role | What they do |
 | --- | --- |
-| System admin | Schools, school years (dates only), grade scales, report-card templates (EN/ES), CSV import for any school, template line-item import |
-| Site admin | Terms for each school year, students, staff, courses, and attendance (CSV for this school only), enrollment, teacher permissions |
+| System admin | Schools, school years, terms for any school, grade scales, report-card templates (EN/ES), CSV import for any school, template line-item import |
+| Site admin | Terms for this school, students, staff, courses, and attendance (CSV for this school only), enrollment, teacher permissions |
 | Teacher | Grade assigned courses, print report cards |
 
 ## Run locally
@@ -41,7 +41,7 @@ Without those env vars, demo mode stays on so you can use the product immediatel
 ## How a gradebook is created
 
 1. District creates a school year (name and start/end dates).
-2. Each site sets its own terms for that year (semester, trimester, or quarter, plus names and dates).
+2. District or the site sets that school’s terms for the year (semester, trimester, or quarter, plus names and dates).
 3. District creates grade scales and a report-card template for one language and one grading-period type. School year is not stored on the template — `{{SCHOOL}}` and `{{YEAR}}` fill from the course.
 4. District assigns the template to grade levels, sets a scale on each mark item, and publishes it.
 5. The site creates a course for that grade and year. Only a published card whose grading periods match **this school’s terms** will attach.

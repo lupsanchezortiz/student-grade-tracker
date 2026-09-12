@@ -1,10 +1,13 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateYearAction } from "@/lib/actions/mutations";
-import { getYear } from "@/lib/data/repo";
+import { getYear, listYearSiteCalendars } from "@/lib/data/repo";
+import { TERM_STRUCTURE_NAMES } from "@/lib/data/terms";
+import { formatDate } from "@/lib/format";
 
 export default async function YearDetailPage({
   params,
@@ -13,8 +16,9 @@ export default async function YearDetailPage({
 }) {
   const { yearId } = await params;
   let data;
+  let calendars;
   try {
-    data = await getYear(yearId);
+    [data, calendars] = await Promise.all([getYear(yearId), listYearSiteCalendars(yearId)]);
   } catch {
     notFound();
   }
@@ -24,7 +28,7 @@ export default async function YearDetailPage({
       <PageHeader
         eyebrow="School year"
         title={data.year.name}
-        description="This window is district-wide. Each school sets its own term names and dates on the Terms page."
+        description="This window is district-wide. You can set each school’s terms here, or a site administrator can do it at the school."
       />
       <form
         action={updateYearAction}
@@ -59,6 +63,29 @@ export default async function YearDetailPage({
         </div>
         <Button type="submit">Save year</Button>
       </form>
+      <h2 className="font-heading mb-3 text-lg">School terms</h2>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Each school has its own semester, trimester, or quarter calendar for this year.
+      </p>
+      <div className="grid gap-2">
+        {calendars.map(({ site, terms, termStructure }) => (
+          <Link
+            key={site.id}
+            href={`/sites/${site.id}/terms/${yearId}`}
+            className="flex flex-col justify-between gap-1 rounded-xl border border-border bg-card px-4 py-3 hover:bg-muted/50 sm:flex-row sm:items-center"
+          >
+            <div>
+              <p className="font-medium">{site.name}</p>
+              <p className="text-sm text-muted-foreground">{site.code}</p>
+            </div>
+            <span className="text-sm text-primary">
+              {termStructure
+                ? `${TERM_STRUCTURE_NAMES[termStructure]} · ${terms.length} terms`
+                : "Set terms"}
+            </span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

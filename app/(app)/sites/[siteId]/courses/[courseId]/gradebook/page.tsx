@@ -35,7 +35,7 @@ export default async function SiteGradebookPage({
       {book.terms.length === 0 || book.term.id === "none" ? (
         <EmptyState
           title="Terms are not set for this year"
-          description="A site administrator needs to choose semester, trimester, or quarter on the Terms page before this gradebook can open."
+          description="A site or district administrator needs to choose semester, trimester, or quarter on the Terms page before this gradebook can open."
           action={
             <Link href={`/sites/${siteId}/terms/${book.course.academicYearId}`} className="text-sm text-primary hover:underline">
               Set terms

@@ -124,6 +124,22 @@ export async function getYear(yearId: string) {
   return { year, terms: [] };
 }
 
+export async function listYearSiteCalendars(yearId: string) {
+  const user = await requireUser();
+  assertDistrict(user);
+  const state = loadState();
+  const year = state.years.find((y) => y.id === yearId);
+  if (!year) throw new Error("School year not found.");
+  return state.sites
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((site) => ({
+      site,
+      terms: termsForSiteYear(state, site.id, yearId),
+      termStructure: siteTermStructure(state, site.id, yearId),
+    }));
+}
+
 export async function listSiteYears(siteId: string) {
   const user = await requireUser();
   assertSiteView(user, siteId);

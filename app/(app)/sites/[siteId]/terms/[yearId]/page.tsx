@@ -28,7 +28,7 @@ export default async function SiteYearTermsPage({
       <PageHeader
         eyebrow={`${site.name} · Terms`}
         title={data.year.name}
-        description={`District year ${formatDate(data.year.startDate)} – ${formatDate(data.year.endDate)}. Term names and dates are this school’s.`}
+        description={`District year ${formatDate(data.year.startDate)} – ${formatDate(data.year.endDate)}. A site or district administrator can edit this school’s terms.`}
         actions={
           <Link href={`/sites/${siteId}/terms`} className="text-sm text-primary hover:underline">
             All years
@@ -68,11 +68,11 @@ export default async function SiteYearTermsPage({
       ) : data.termStructure ? (
         <p className="mb-6 text-sm text-muted-foreground">
           This school uses a {TERM_STRUCTURE_NAMES[data.termStructure].toLowerCase()} calendar.
-          A site administrator can change names and dates.
+          A site or district administrator can change names and dates.
         </p>
       ) : (
         <p className="mb-6 text-sm text-muted-foreground">
-          A site administrator still needs to set terms for this year.
+          A site or district administrator still needs to set terms for this year.
         </p>
       )}
 
