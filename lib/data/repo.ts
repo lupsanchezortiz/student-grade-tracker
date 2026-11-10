@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
+import { isSupabaseConfigured } from "@/lib/auth/config";
 import {
   assertDistrict,
   assertSiteAdmin,
@@ -25,6 +26,20 @@ import { normalizePrintCode } from "@/lib/documents/print-code";
 import { sanitizeTemplateHtml } from "@/lib/documents/sanitize";
 import type { TemplateLayout } from "@/lib/types";
 import { loadState, mutateState, resetState } from "@/lib/data/store";
+import {
+  listStudentsSupabase,
+  createStudentSupabase,
+  updateStudentSupabase,
+  listStaffSupabase,
+  addStaffSupabase,
+  listCoursesSupabase,
+  createCourseSupabase,
+  setEnrollmentsSupabase,
+  setCourseTeachersSupabase,
+  getCourseTeachersSupabase,
+  getStudentByIdSupabase,
+  getCourseSupabase,
+} from "@/lib/data/supabase-repo";
 import type {
   AcademicYear,
   AttendanceRecord,
@@ -729,6 +744,11 @@ export async function moveItem(itemId: string, direction: "up" | "down") {
 export async function listStudents(siteId: string) {
   const user = await requireUser();
   assertSiteView(user, siteId);
+  
+  if (isSupabaseConfigured()) {
+    return listStudentsSupabase(siteId);
+  }
+  
   const state = loadState();
   return state.students
     .filter((s) => s.siteId === siteId)
@@ -743,6 +763,11 @@ export async function createStudent(
 ) {
   const user = await requireUser();
   assertSiteAdmin(user, siteId);
+  
+  if (isSupabaseConfigured()) {
+    return createStudentSupabase(siteId, input);
+  }
+  
   return mutateState((state) => {
     const student: Student = {
       id: id(),
@@ -764,6 +789,14 @@ export async function updateStudent(
   input: Omit<Student, "id" | "siteId">,
 ) {
   const user = await requireUser();
+  
+  if (isSupabaseConfigured()) {
+    const existing = await getStudentByIdSupabase(studentId);
+    if (!existing) throw new Error("Student not found.");
+    assertSiteAdmin(user, existing.siteId);
+    return updateStudentSupabase(studentId, input);
+  }
+  
   const state = loadState();
   const existing = state.students.find((s) => s.id === studentId);
   if (!existing) throw new Error("Student not found.");
@@ -783,6 +816,11 @@ export async function updateStudent(
 export async function listStaff(siteId: string) {
   const user = await requireUser();
   assertSiteView(user, siteId);
+  
+  if (isSupabaseConfigured()) {
+    return listStaffSupabase(siteId);
+  }
+  
   const state = loadState();
   return state.memberships
     .filter((m) => m.siteId === siteId)
@@ -802,6 +840,11 @@ export async function addStaff(
 ) {
   const user = await requireUser();
   if (!user.isSystemAdmin) assertSiteAdmin(user, siteId);
+  
+  if (isSupabaseConfigured()) {
+    return addStaffSupabase(siteId, input);
+  }
+  
   return mutateState((state) => {
     const email = input.email.trim().toLowerCase();
     let profile = state.profiles.find((p) => p.email.toLowerCase() === email);
@@ -837,6 +880,28 @@ export async function listCourses(siteId: string) {
   const user = await requireUser();
   assertSiteView(user, siteId);
   const state = loadState();
+  
+  if (isSupabaseConfigured()) {
+    const courseIds = await listCoursesSupabase(siteId);
+    const isAdmin = user.isSystemAdmin || user.memberships.some((m) => m.siteId === siteId && m.role === "site_admin");
+    
+    const filtered: string[] = [];
+    if (isAdmin) {
+      filtered.push(...courseIds);
+    } else {
+      for (const courseId of courseIds) {
+        const teachers = await getCourseTeachersSupabase(courseId);
+        if (teachers.some((t) => t.profileId === user.id)) {
+          filtered.push(courseId);
+        }
+      }
+    }
+    
+    return filtered
+      .map((cid) => hydrateCourse(state, cid))
+      .filter((c): c is NonNullable<typeof c> => Boolean(c));
+  }
+  
   const courses = user.isSystemAdmin || user.memberships.some((m) => m.siteId === siteId && m.role === "site_admin")
     ? state.courses.filter((c) => c.siteId === siteId)
     : state.courses.filter(
@@ -893,23 +958,36 @@ export async function createCourse(
 ) {
   const user = await requireUser();
   assertSiteAdmin(user, siteId);
-  return mutateState((state) => {
-    const structure = siteTermStructure(state, siteId, input.academicYearId);
-    if (!structure) {
-      throw new Error("Set this school’s terms for that year before opening a course.");
-    }
-    const template = findTemplateForGrade(
-      state,
-      input.academicYearId,
-      input.gradeLevelId,
-      structure,
+  const state = loadState();
+  
+  const structure = siteTermStructure(state, siteId, input.academicYearId);
+  if (!structure) {
+    throw new Error("Set this school's terms for that year before opening a course.");
+  }
+  const template = findTemplateForGrade(
+    state,
+    input.academicYearId,
+    input.gradeLevelId,
+    structure,
+  );
+  if (!template) {
+    const periods = termStructureName(structure).toLowerCase();
+    throw new Error(
+      `District has not published a ${periods} report card for this grade. The card's grading periods must match this school's terms.`,
     );
-    if (!template) {
-      const periods = termStructureName(structure).toLowerCase();
-      throw new Error(
-        `District has not published a ${periods} report card for this grade. The card’s grading periods must match this school’s terms.`,
-      );
-    }
+  }
+  
+  if (isSupabaseConfigured()) {
+    const course = await createCourseSupabase(siteId, {
+      name: input.name,
+      academicYearId: input.academicYearId,
+      gradeLevelId: input.gradeLevelId,
+      templateId: template.id,
+    });
+    return hydrateCourse(state, course.id)!;
+  }
+  
+  return mutateState((state) => {
     const course: Course = {
       id: id(),
       siteId,
@@ -925,6 +1003,15 @@ export async function createCourse(
 
 export async function setEnrollments(courseId: string, studentIds: string[]) {
   const user = await requireUser();
+  
+  if (isSupabaseConfigured()) {
+    const course = await getCourseSupabase(courseId);
+    if (!course) throw new Error("Course not found.");
+    assertSiteAdmin(user, course.siteId);
+    await setEnrollmentsSupabase(courseId, studentIds);
+    return;
+  }
+  
   const state = loadState();
   const course = state.courses.find((c) => c.id === courseId);
   if (!course) throw new Error("Course not found.");
@@ -961,6 +1048,22 @@ export async function setCourseTeachers(
 ) {
   const user = await requireUser();
   const state = loadState();
+  
+  if (isSupabaseConfigured()) {
+    const course = await getCourseSupabase(courseId);
+    if (!course) throw new Error("Course not found.");
+    assertSiteAdmin(user, course.siteId);
+    const templateSectionIds = new Set(
+      state.sections.filter((s) => s.templateId === course.templateId).map((s) => s.id),
+    );
+    const processedTeachers = teachers.map((t) => ({
+      ...t,
+      sectionIds: (t.sectionIds ?? []).filter((id) => templateSectionIds.has(id)),
+    }));
+    await setCourseTeachersSupabase(courseId, processedTeachers);
+    return;
+  }
+  
   const course = state.courses.find((c) => c.id === courseId);
   if (!course) throw new Error("Course not found.");
   assertSiteAdmin(user, course.siteId);

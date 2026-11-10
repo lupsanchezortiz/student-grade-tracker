@@ -1,11 +1,18 @@
 import { requireUser } from "@/lib/auth/session";
+import { isSupabaseConfigured } from "@/lib/auth/config";
 import { assertDistrict, assertSiteAdmin } from "@/lib/data/access";
 import { findTemplateForGrade } from "@/lib/data/hydrate";
 import { siteTermStructure, termsForSiteYear } from "@/lib/data/terms";
-import { mutateState } from "@/lib/data/store";
+import { mutateState, loadState } from "@/lib/data/store";
 import { csvCell, parseCsv, type CsvRow, type ImportResult } from "@/lib/csv/parse";
 import type { ImportKind } from "@/lib/csv/samples";
 import { normalizePrintCode, printCodesMatch } from "@/lib/documents/print-code";
+import { createServerSupabase } from "@/lib/supabase/server";
+import {
+  createStudentSupabase,
+  updateStudentSupabase,
+  addStaffSupabase,
+} from "@/lib/data/supabase-repo";
 import type {
   AttendanceRecord,
   Locale,
@@ -14,6 +21,9 @@ import type {
   Student,
   TemplateItem,
   Term,
+  Site,
+  GradeLevel,
+  AcademicYear,
 } from "@/lib/types";
 
 const id = () => crypto.randomUUID();
@@ -22,21 +32,65 @@ function emptyResult(): ImportResult {
   return { created: 0, updated: 0, skipped: 0, errors: [] };
 }
 
-function findSite(state: StoreState, code: string) {
-  const needle = code.trim().toUpperCase();
-  return state.sites.find((s) => s.code.toUpperCase() === needle);
+async function getSites(): Promise<Site[]> {
+  if (isSupabaseConfigured()) {
+    const supabase = await createServerSupabase();
+    const { data } = await supabase.from("sites").select("*");
+    return (data || []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      address: row.address,
+      createdAt: row.created_at,
+    }));
+  }
+  return loadState().sites;
 }
 
-function findGrade(state: StoreState, raw: string) {
+async function getGradeLevels(): Promise<GradeLevel[]> {
+  if (isSupabaseConfigured()) {
+    const supabase = await createServerSupabase();
+    const { data } = await supabase.from("grade_levels").select("*");
+    return (data || []).map((row) => ({
+      id: row.id,
+      code: row.code,
+      nameEn: row.name_en,
+      nameEs: row.name_es,
+      sortOrder: row.sort_order,
+    }));
+  }
+  return loadState().gradeLevels;
+}
+
+async function getYears(): Promise<AcademicYear[]> {
+  if (isSupabaseConfigured()) {
+    const supabase = await createServerSupabase();
+    const { data } = await supabase.from("academic_years").select("*");
+    return (data || []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      startDate: row.start_date,
+      endDate: row.end_date,
+    }));
+  }
+  return loadState().years;
+}
+
+function findSite(sites: Site[], code: string) {
+  const needle = code.trim().toUpperCase();
+  return sites.find((s) => s.code.toUpperCase() === needle);
+}
+
+function findGrade(gradeLevels: GradeLevel[], raw: string) {
   const value = raw.trim().toLowerCase().replace(/^grade\s+/, "");
-  return state.gradeLevels.find(
+  return gradeLevels.find(
     (g) => g.code.toLowerCase() === value || g.nameEn.toLowerCase() === raw.trim().toLowerCase(),
   );
 }
 
-function findYear(state: StoreState, raw: string) {
+function findYear(years: AcademicYear[], raw: string) {
   const compact = raw.trim().replace(/[–—]/g, "-");
-  return state.years.find(
+  return years.find(
     (y) => y.name === raw.trim() || y.name.replace(/[–—]/g, "-") === compact,
   );
 }
@@ -53,7 +107,7 @@ export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
     rows.forEach((row, index) => {
       const rowNo = index + 2;
       const siteCode = csvCell(row, "site_code", "site");
-      const site = findSite(state, siteCode);
+      const site = findSite(state.sites, siteCode);
       if (!site) {
         result.errors.push({ row: rowNo, message: `Unknown school code “${siteCode}”.` });
         result.skipped++;
@@ -81,7 +135,7 @@ export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
       const number = csvCell(row, "student_number", "id");
       const first = csvCell(row, "first_name", "first");
       const last = csvCell(row, "last_name", "last");
-      const grade = findGrade(state, csvCell(row, "grade", "grade_level"));
+      const grade = findGrade(state.gradeLevels, csvCell(row, "grade", "grade_level"));
       if (!number || !first || !last || !grade) {
         result.errors.push({
           row: rowNo,
@@ -120,7 +174,7 @@ export async function importStaffCsv(csv: string, lockedSiteId?: string) {
     const result = emptyResult();
     rows.forEach((row, index) => {
       const rowNo = index + 2;
-      const site = findSite(state, csvCell(row, "site_code", "site"));
+      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
       if (!site) {
         result.errors.push({ row: rowNo, message: "Unknown school code." });
         result.skipped++;
@@ -190,9 +244,9 @@ export async function importCoursesCsv(csv: string, lockedSiteId?: string) {
     const result = emptyResult();
     rows.forEach((row, index) => {
       const rowNo = index + 2;
-      const site = findSite(state, csvCell(row, "site_code", "site"));
-      const year = findYear(state, csvCell(row, "year", "academic_year"));
-      const grade = findGrade(state, csvCell(row, "grade", "grade_level"));
+      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
+      const year = findYear(state.years, csvCell(row, "year", "academic_year"));
+      const grade = findGrade(state.gradeLevels, csvCell(row, "grade", "grade_level"));
       const name = csvCell(row, "name", "course");
       if (!site || !year || !grade || !name) {
         result.errors.push({
@@ -487,7 +541,7 @@ export async function importAttendanceCsv(csv: string, lockedSiteId?: string) {
     if (!state.attendance) state.attendance = [];
     rows.forEach((row, index) => {
       const rowNo = index + 2;
-      const site = findSite(state, csvCell(row, "site_code", "site"));
+      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
       if (!site) {
         result.errors.push({ row: rowNo, message: "Unknown school code." });
         result.skipped++;
@@ -508,7 +562,7 @@ export async function importAttendanceCsv(csv: string, lockedSiteId?: string) {
         result.skipped++;
         return;
       }
-      const year = findYear(state, csvCell(row, "year", "academic_year"));
+      const year = findYear(state.years, csvCell(row, "year", "academic_year"));
       const term = year ? findTerm(state, site.id, year.id, csvCell(row, "term", "period")) : undefined;
       const number = csvCell(row, "student_number", "id");
       if (!year || !term || !number) {
