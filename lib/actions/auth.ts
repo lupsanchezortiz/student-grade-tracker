@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { isSupabaseConfigured, SESSION_COOKIE } from "@/lib/auth/config";
+import { isSupabaseConfigured, SESSION_COOKIE, assertDemoModeAllowed } from "@/lib/auth/config";
 import { homePath } from "@/lib/auth/session";
 import { loadState } from "@/lib/data/store";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -57,6 +57,8 @@ export async function loginAction(formData: FormData) {
     );
   }
 
+  assertDemoModeAllowed();
+  
   const state = loadState();
   const profile = state.profiles.find(
     (p) => p.email.toLowerCase() === email && p.password === password,

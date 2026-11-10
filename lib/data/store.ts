@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
+import { assertDemoModeAllowed } from "@/lib/auth/config";
 import { normalizeLayout } from "@/lib/data/layout";
 import { createSeedState } from "@/lib/data/seed";
 import { parseLocale } from "@/lib/data/template-doc";
@@ -24,6 +25,8 @@ function clone<T>(value: T): T {
 }
 
 export function loadState(): StoreState {
+  assertDemoModeAllowed();
+  
   if (memory) {
     const needed = memory.terms.some((term) => !term.siteId);
     if (needed) {
@@ -54,6 +57,8 @@ function persist(state: StoreState) {
 }
 
 export function mutateState<T>(fn: (state: StoreState) => T): T {
+  assertDemoModeAllowed();
+  
   const state = loadState();
   const result = fn(state);
   persist(state);
@@ -61,6 +66,8 @@ export function mutateState<T>(fn: (state: StoreState) => T): T {
 }
 
 export function resetState(): StoreState {
+  assertDemoModeAllowed();
+  
   memory = createSeedState();
   persist(memory);
   return memory;
