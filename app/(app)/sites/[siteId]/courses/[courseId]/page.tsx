@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { CsvImportDialog } from "@/components/csv-import-dialog";
 import { setEnrollmentsAction, setTeachersAction } from "@/lib/actions/mutations";
 import { getCourse, listStaff, listStudents } from "@/lib/data/repo";
 import { isSpecialistSection } from "@/lib/data/access";
@@ -44,10 +45,15 @@ export default async function CourseSetupPage({
       />
 
       <section className="mb-8 rounded-xl border border-border bg-card p-4">
-        <h2 className="font-heading text-lg">Enroll students</h2>
-        <p className="mb-3 text-sm text-muted-foreground">
-          Showing students in {course.gradeLevel.nameEn} at this school.
-        </p>
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-heading text-lg">Enroll students</h2>
+            <p className="text-sm text-muted-foreground">
+              Showing students in {course.gradeLevel.nameEn} at this school.
+            </p>
+          </div>
+          <CsvImportDialog kind="enrollments" siteId={siteId} triggerLabel="Import CSV" />
+        </div>
         {eligible.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No students in this grade. Add them on the roster first.

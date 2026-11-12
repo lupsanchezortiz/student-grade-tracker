@@ -16,6 +16,7 @@ import {
   updateCourseSupabase,
   getProfileByEmailSupabase,
   setCourseTeachersSupabase,
+  setEnrollmentsSupabase,
 } from "@/lib/data/supabase-repo";
 import type {
   AttendanceRecord,
@@ -799,6 +800,200 @@ function parseCount(raw: string, rowNo: number, field: string, result: ImportRes
   return Number(value);
 }
 
+export async function importEnrollmentsCsv(csv: string, lockedSiteId?: string) {
+  const user = await requireUser();
+  const { rows } = parseCsv(csv);
+  
+  if (isSupabaseConfigured()) {
+    const result = emptyResult();
+    const sites = await getSites();
+    const years = await getYears();
+    const gradeLevels = await getGradeLevels();
+    const supabase = await createServerSupabase();
+    
+    const courseEnrollmentMap = new Map<string, Set<string>>();
+    
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      const rowNo = index + 2;
+      const site = findSite(sites, csvCell(row, "site_code", "site"));
+      const year = findYear(years, csvCell(row, "year", "academic_year"));
+      const grade = findGrade(gradeLevels, csvCell(row, "grade", "grade_level"));
+      const courseName = csvCell(row, "course_name", "name", "course");
+      const studentNumber = csvCell(row, "student_number", "student_id", "id");
+      
+      if (!site || !year || !grade || !courseName || !studentNumber) {
+        result.errors.push({
+          row: rowNo,
+          message: "Need site_code, year, grade, course_name, and student_number.",
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      if (lockedSiteId && site.id !== lockedSiteId) {
+        result.errors.push({ row: rowNo, message: `Row is for ${site.code}, not this school.` });
+        result.skipped++;
+        continue;
+      }
+      
+      try {
+        if (!user.isSystemAdmin) assertSiteAdmin(user, site.id);
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "No permission.",
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const { data: course } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("site_id", site.id)
+        .eq("academic_year_id", year.id)
+        .eq("name", courseName)
+        .maybeSingle();
+      
+      if (!course) {
+        result.errors.push({
+          row: rowNo,
+          message: `Course "${courseName}" not found for ${site.code} in ${year.name}. Import courses first.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const { data: student } = await supabase
+        .from("students")
+        .select("*")
+        .eq("site_id", site.id)
+        .eq("student_number", studentNumber)
+        .maybeSingle();
+      
+      if (!student) {
+        result.errors.push({
+          row: rowNo,
+          message: `Student ${studentNumber} not found at ${site.code}. Import students first.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      if (!courseEnrollmentMap.has(course.id)) {
+        const { data: existing } = await supabase
+          .from("enrollments")
+          .select("student_id")
+          .eq("course_id", course.id);
+        courseEnrollmentMap.set(course.id, new Set((existing || []).map((e) => e.student_id)));
+      }
+      
+      const enrollmentSet = courseEnrollmentMap.get(course.id)!;
+      if (enrollmentSet.has(student.id)) {
+        result.skipped++;
+      } else {
+        enrollmentSet.add(student.id);
+        result.created++;
+      }
+    }
+    
+    for (const [courseId, studentIds] of courseEnrollmentMap.entries()) {
+      try {
+        await setEnrollmentsSupabase(courseId, Array.from(studentIds));
+      } catch (error) {
+        result.errors.push({
+          row: 0,
+          message: error instanceof Error ? error.message : "Failed to save enrollments.",
+        });
+      }
+    }
+    
+    return result;
+  }
+  
+  return mutateState((state) => {
+    const result = emptyResult();
+    rows.forEach((row, index) => {
+      const rowNo = index + 2;
+      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
+      const year = findYear(state.years, csvCell(row, "year", "academic_year"));
+      const grade = findGrade(state.gradeLevels, csvCell(row, "grade", "grade_level"));
+      const courseName = csvCell(row, "course_name", "name", "course");
+      const studentNumber = csvCell(row, "student_number", "student_id", "id");
+      
+      if (!site || !year || !grade || !courseName || !studentNumber) {
+        result.errors.push({
+          row: rowNo,
+          message: "Need site_code, year, grade, course_name, and student_number.",
+        });
+        result.skipped++;
+        return;
+      }
+      
+      if (lockedSiteId && site.id !== lockedSiteId) {
+        result.errors.push({ row: rowNo, message: `Row is for ${site.code}, not this school.` });
+        result.skipped++;
+        return;
+      }
+      
+      try {
+        if (!user.isSystemAdmin) assertSiteAdmin(user, site.id);
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "No permission.",
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const course = state.courses.find(
+        (c) => c.siteId === site.id && c.academicYearId === year.id && c.name === courseName,
+      );
+      
+      if (!course) {
+        result.errors.push({
+          row: rowNo,
+          message: `Course "${courseName}" not found for ${site.code} in ${year.name}. Import courses first.`,
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const student = state.students.find(
+        (s) => s.siteId === site.id && s.studentNumber === studentNumber,
+      );
+      
+      if (!student) {
+        result.errors.push({
+          row: rowNo,
+          message: `Student ${studentNumber} not found at ${site.code}. Import students first.`,
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const existing = state.enrollments.find(
+        (e) => e.courseId === course.id && e.studentId === student.id,
+      );
+      
+      if (existing) {
+        result.skipped++;
+      } else {
+        assertDemoModeAllowed();
+        state.enrollments.push({
+          id: id(),
+          courseId: course.id,
+          studentId: student.id,
+        });
+        result.created++;
+      }
+    });
+    return result;
+  });
+}
+
 export async function importAttendanceCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
   const { rows } = parseCsv(csv);
@@ -905,6 +1100,7 @@ export async function runImport(kind: ImportKind, csv: string, opts?: { siteId?:
   if (kind === "students") return importStudentsCsv(csv, opts?.siteId);
   if (kind === "staff") return importStaffCsv(csv, opts?.siteId);
   if (kind === "courses") return importCoursesCsv(csv, opts?.siteId);
+  if (kind === "enrollments") return importEnrollmentsCsv(csv, opts?.siteId);
   if (kind === "attendance") return importAttendanceCsv(csv, opts?.siteId);
   if (!opts?.templateId) throw new Error("Template is required for item import.");
   return importTemplateItemsCsv(opts.templateId, csv);
