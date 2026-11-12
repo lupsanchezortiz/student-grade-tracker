@@ -17,6 +17,11 @@ MPL,20260021,2026–27,2,1,0
 MPL,20260022,2026–27,2,0,2
 `;
 
+export const SAMPLE_ENROLLMENTS = `site_code,year,grade,course_name,student_number
+MPL,2026–27,3,Grade 3 Homeroom — Lee,20260010
+MPL,2026–27,3,Grade 3 Homeroom — Lee,20260011
+`;
+
 export const SAMPLE_TEMPLATE_ITEMS = `list_item_eng,list_item_span,grade_scale,mark/comment,print_code,char
 Names uppercase letters,Nombra letras mayúsculas,"1,2,3,4",m,01,1
 Names lowercase letters,Nombra letras minúsculas,"1,2,3,4",m,02,1
@@ -32,6 +37,7 @@ export const SAMPLES = {
   students: SAMPLE_STUDENTS,
   staff: SAMPLE_STAFF,
   courses: SAMPLE_COURSES,
+  enrollments: SAMPLE_ENROLLMENTS,
   attendance: SAMPLE_ATTENDANCE,
   template_items: SAMPLE_TEMPLATE_ITEMS,
 } as const;
