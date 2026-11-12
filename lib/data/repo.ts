@@ -39,6 +39,8 @@ import {
   getCourseTeachersSupabase,
   getStudentByIdSupabase,
   getCourseSupabase,
+  listGradesSupabase,
+  upsertGradeSupabase,
 } from "@/lib/data/supabase-repo";
 import type {
   AcademicYear,
@@ -1109,7 +1111,18 @@ export async function getGradebook(courseId: string, termId?: string) {
       startDate: course.year.startDate,
       endDate: course.year.endDate,
     } satisfies Term);
-  const enrollmentIds = new Set(course.enrollments.map((e) => e.id));
+  const enrollmentIds = course.enrollments.map((e) => e.id);
+  const enrollmentIdsSet = new Set(enrollmentIds);
+  
+  let grades: Grade[];
+  if (isSupabaseConfigured()) {
+    grades = await listGradesSupabase(enrollmentIds, term.id);
+  } else {
+    grades = state.grades.filter(
+      (g) => g.termId === term.id && enrollmentIdsSet.has(g.enrollmentId),
+    );
+  }
+  
   return {
     course,
     term,
@@ -1119,11 +1132,9 @@ export async function getGradebook(courseId: string, termId?: string) {
     canImportAttendance: canImportAttendance(user, course.siteId),
     editableItemIds: editableItemIdsForCourse(user, state, courseId),
     students: course.enrollments.map((e) => e.student),
-    grades: state.grades.filter(
-      (g) => g.termId === term.id && enrollmentIds.has(g.enrollmentId),
-    ),
+    grades,
     attendance: (state.attendance ?? []).filter(
-      (a) => a.termId === term.id && enrollmentIds.has(a.enrollmentId),
+      (a) => a.termId === term.id && enrollmentIdsSet.has(a.enrollmentId),
     ),
   };
 }
@@ -1203,10 +1214,18 @@ export async function getPrintCards(input: {
   const book = await getGradebook(input.courseId, input.termId);
   if (!book.canPrint) throw new Error("You cannot print report cards for this course.");
   const state = loadState();
-  const enrollmentIds = new Set(book.course.enrollments.map((e) => e.id));
-  const yearGrades = state.grades.filter((g) => enrollmentIds.has(g.enrollmentId));
+  const enrollmentIds = book.course.enrollments.map((e) => e.id);
+  const enrollmentIdsSet = new Set(enrollmentIds);
+  
+  let yearGrades: Grade[];
+  if (isSupabaseConfigured()) {
+    yearGrades = await listGradesSupabase(enrollmentIds);
+  } else {
+    yearGrades = state.grades.filter((g) => enrollmentIdsSet.has(g.enrollmentId));
+  }
+  
   const yearAttendance = (state.attendance ?? []).filter((a) =>
-    enrollmentIds.has(a.enrollmentId),
+    enrollmentIdsSet.has(a.enrollmentId),
   );
   const enrollments = input.studentId
     ? book.course.enrollments.filter((e) => e.studentId === input.studentId)
@@ -1237,23 +1256,36 @@ export async function upsertGrade(input: {
   comment: string;
 }) {
   const user = await requireUser();
+  const state = loadState();
+  
+  const enrollment = state.enrollments.find((e) => e.id === input.enrollmentId);
+  if (!enrollment) throw new Error("Enrollment not found.");
+  if (!canEditCourseItem(user, state, enrollment.courseId, input.templateItemId)) {
+    throw new Error("You cannot change this mark. Specialist columns are entered by the assigned specialist.");
+  }
+  const item = state.items.find((i) => i.id === input.templateItemId);
+  if (item?.itemType === "mark" && input.markId) {
+    const mark = state.marks.find((m) => m.id === input.markId);
+    if (!mark || (item.gradeScaleId && mark.scaleId !== item.gradeScaleId)) {
+      throw new Error("That mark is not allowed for this item.");
+    }
+  }
+  const comment =
+    item?.itemType === "comment" && item.maxChars
+      ? input.comment.slice(0, item.maxChars)
+      : input.comment;
+  
+  if (isSupabaseConfigured()) {
+    return upsertGradeSupabase({
+      enrollmentId: input.enrollmentId,
+      termId: input.termId,
+      templateItemId: input.templateItemId,
+      markId: input.markId,
+      comment,
+    });
+  }
+  
   return mutateState((state) => {
-    const enrollment = state.enrollments.find((e) => e.id === input.enrollmentId);
-    if (!enrollment) throw new Error("Enrollment not found.");
-    if (!canEditCourseItem(user, state, enrollment.courseId, input.templateItemId)) {
-      throw new Error("You cannot change this mark. Specialist columns are entered by the assigned specialist.");
-    }
-    const item = state.items.find((i) => i.id === input.templateItemId);
-    if (item?.itemType === "mark" && input.markId) {
-      const mark = state.marks.find((m) => m.id === input.markId);
-      if (!mark || (item.gradeScaleId && mark.scaleId !== item.gradeScaleId)) {
-        throw new Error("That mark is not allowed for this item.");
-      }
-    }
-    const comment =
-      item?.itemType === "comment" && item.maxChars
-        ? input.comment.slice(0, item.maxChars)
-        : input.comment;
     const existing = state.grades.find(
       (g) =>
         g.enrollmentId === input.enrollmentId &&

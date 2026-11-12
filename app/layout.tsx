@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     "District student information system for calendars, bilingual report cards, and site gradebooks.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"

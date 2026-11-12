@@ -6,6 +6,7 @@ import type {
   Course,
   Enrollment,
   CourseTeacher,
+  Grade,
 } from "@/lib/types";
 
 export async function listStudentsSupabase(siteId: string): Promise<Student[]> {
@@ -469,4 +470,98 @@ export async function updateCourseSupabase(
     .eq("id", courseId);
 
   if (error) throw new Error(`Failed to update course: ${error.message}`);
+}
+
+export async function listGradesSupabase(
+  enrollmentIds: string[],
+  termId?: string,
+): Promise<Array<{ id: string; enrollmentId: string; termId: string; templateItemId: string; markId: string | null; comment: string }>> {
+  if (enrollmentIds.length === 0) return [];
+  
+  const supabase = await createServerSupabase();
+  let query = supabase
+    .from("grades")
+    .select("*")
+    .in("enrollment_id", enrollmentIds);
+
+  if (termId) {
+    query = query.eq("term_id", termId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw new Error(`Failed to list grades: ${error.message}`);
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    enrollmentId: row.enrollment_id,
+    termId: row.term_id,
+    templateItemId: row.template_item_id,
+    markId: row.mark_id,
+    comment: row.comment || "",
+  }));
+}
+
+export async function upsertGradeSupabase(input: {
+  enrollmentId: string;
+  termId: string;
+  templateItemId: string;
+  markId: string | null;
+  comment: string;
+}): Promise<{ id: string; enrollmentId: string; termId: string; templateItemId: string; markId: string | null; comment: string }> {
+  const supabase = await createServerSupabase();
+
+  const { data: existing } = await supabase
+    .from("grades")
+    .select("id")
+    .eq("enrollment_id", input.enrollmentId)
+    .eq("term_id", input.termId)
+    .eq("template_item_id", input.templateItemId)
+    .maybeSingle();
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from("grades")
+      .update({
+        mark_id: input.markId,
+        comment: input.comment,
+      })
+      .eq("id", existing.id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to update grade: ${error.message}`);
+
+    return {
+      id: data.id,
+      enrollmentId: data.enrollment_id,
+      termId: data.term_id,
+      templateItemId: data.template_item_id,
+      markId: data.mark_id,
+      comment: data.comment || "",
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("grades")
+    .insert({
+      enrollment_id: input.enrollmentId,
+      term_id: input.termId,
+      template_item_id: input.templateItemId,
+      mark_id: input.markId,
+      comment: input.comment,
+    })
+    .select()
+    .single();
+
+  if (error) throw new Error(`Failed to create grade: ${error.message}`);
+
+  return {
+    id: data.id,
+    enrollmentId: data.enrollment_id,
+    termId: data.term_id,
+    templateItemId: data.template_item_id,
+    markId: data.mark_id,
+    comment: data.comment || "",
+  };
 }
