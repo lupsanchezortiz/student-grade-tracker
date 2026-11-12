@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth/session";
-import { isSupabaseConfigured } from "@/lib/auth/config";
+import { assertDemoModeAllowed, isSupabaseConfigured } from "@/lib/auth/config";
 import {
   assertDistrict,
   assertSiteAdmin,
@@ -849,6 +849,7 @@ export async function addStaff(
     const email = input.email.trim().toLowerCase();
     let profile = state.profiles.find((p) => p.email.toLowerCase() === email);
     if (!profile) {
+      assertDemoModeAllowed();
       profile = {
         id: id(),
         email,

@@ -19,7 +19,15 @@ pnpm dev
 
 Opens at [http://127.0.0.1:43147](http://127.0.0.1:43147).
 
-With no Supabase env vars the app runs in **demo mode** (file-backed store in `.data/store.json`).
+### Development modes
+
+The app supports two modes:
+
+1. **Demo mode** (local development only): Uses a local file store (`.data/store.json`) with seeded Northside Unified data. Set `ENABLE_DEMO_MODE=true` in `.env.local`. This mode is **automatically blocked** in production (`NODE_ENV=production`).
+
+2. **Supabase mode** (development and production): Requires `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in your `.env.local` or production environment. See "Supabase (optional)" section below for setup.
+
+**Demo mode credentials** (only when `ENABLE_DEMO_MODE=true`):
 
 | Email | Password | Role |
 | --- | --- | --- |
@@ -29,14 +37,18 @@ With no Supabase env vars the app runs in **demo mode** (file-backed store in `.
 | `jordan.lee@maple.northside.edu` | `demo` | Specialist teacher (PE, art, specials), Maple |
 | `lena.cho@cedar.northside.edu` | `demo` | Site admin, Cedar Ridge K–8 |
 
-## Supabase (optional)
+## Supabase production setup
 
-1. Create a project and copy URL + anon key into `.env.local` (see `.env.example`).
+For production use or development with real data:
+
+1. Create a Supabase project and copy URL + anon key into your environment variables.
 2. Run the SQL files in [`supabase/migrations`](supabase/migrations) in order.
 3. Run [`supabase/seed.sql`](supabase/seed.sql) for the district catalog.
 4. Create Auth users and set `profiles.is_system_admin` / `site_memberships` to match.
+5. **In production**: Demo mode is automatically disabled. Only Supabase authentication will work.
+6. **In development**: Set `ENABLE_DEMO_MODE=false` (or omit it) to use Supabase instead of the local file store.
 
-Without those env vars, demo mode stays on so you can use the product immediately.
+**Important for production deployments**: Demo mode and demo passwords are blocked when `NODE_ENV=production`. You must configure Supabase for production use.
 
 ## How a gradebook is created
 

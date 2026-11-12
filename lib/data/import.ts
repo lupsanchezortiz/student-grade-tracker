@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth/session";
-import { isSupabaseConfigured } from "@/lib/auth/config";
+import { assertDemoModeAllowed, isSupabaseConfigured } from "@/lib/auth/config";
 import { assertDistrict, assertSiteAdmin } from "@/lib/data/access";
 import { findTemplateForGrade } from "@/lib/data/hydrate";
 import { siteTermStructure, termsForSiteYear } from "@/lib/data/terms";
@@ -345,6 +345,7 @@ export async function importStaffCsv(csv: string, lockedSiteId?: string) {
       }
       let profile = state.profiles.find((p) => p.email.toLowerCase() === email);
       if (!profile) {
+        assertDemoModeAllowed();
         profile = {
           id: id(),
           email,
