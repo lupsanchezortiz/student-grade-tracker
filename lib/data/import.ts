@@ -12,6 +12,10 @@ import {
   createStudentSupabase,
   updateStudentSupabase,
   addStaffSupabase,
+  createCourseSupabase,
+  updateCourseSupabase,
+  getProfileByEmailSupabase,
+  setCourseTeachersSupabase,
 } from "@/lib/data/supabase-repo";
 import type {
   AttendanceRecord,
@@ -102,6 +106,86 @@ function localeOf(raw: string): Locale {
 export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
   const { rows } = parseCsv(csv);
+  
+  if (isSupabaseConfigured()) {
+    const result = emptyResult();
+    const sites = await getSites();
+    const gradeLevels = await getGradeLevels();
+    const supabase = await createServerSupabase();
+    
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      const rowNo = index + 2;
+      const siteCode = csvCell(row, "site_code", "site");
+      const site = findSite(sites, siteCode);
+      if (!site) {
+        result.errors.push({ row: rowNo, message: `Unknown school code "${siteCode}".` });
+        result.skipped++;
+        continue;
+      }
+      if (lockedSiteId && site.id !== lockedSiteId) {
+        result.errors.push({ row: rowNo, message: `Row is for ${site.code}, not this school.` });
+        result.skipped++;
+        continue;
+      }
+      try {
+        if (!user.isSystemAdmin) assertSiteAdmin(user, site.id);
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "No permission.",
+        });
+        result.skipped++;
+        continue;
+      }
+      const number = csvCell(row, "student_number", "id");
+      const first = csvCell(row, "first_name", "first");
+      const last = csvCell(row, "last_name", "last");
+      const grade = findGrade(gradeLevels, csvCell(row, "grade", "grade_level"));
+      if (!number || !first || !last || !grade) {
+        result.errors.push({
+          row: rowNo,
+          message: "Need student_number, first_name, last_name, and a valid grade.",
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const { data: existing } = await supabase
+        .from("students")
+        .select("*")
+        .eq("site_id", site.id)
+        .eq("student_number", number)
+        .maybeSingle();
+      
+      const next: Omit<Student, "id" | "siteId"> = {
+        studentNumber: number,
+        firstName: first,
+        lastName: last,
+        preferredName: csvCell(row, "preferred_name") || first,
+        gradeLevelId: grade.id,
+        homeLanguage: localeOf(csvCell(row, "home_language", "language")),
+      };
+      
+      try {
+        if (existing) {
+          await updateStudentSupabase(existing.id, next);
+          result.updated++;
+        } else {
+          await createStudentSupabase(site.id, next);
+          result.created++;
+        }
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "Database error.",
+        });
+        result.skipped++;
+      }
+    }
+    return result;
+  }
+  
   return mutateState((state) => {
     const result = emptyResult();
     rows.forEach((row, index) => {
@@ -109,7 +193,7 @@ export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
       const siteCode = csvCell(row, "site_code", "site");
       const site = findSite(state.sites, siteCode);
       if (!site) {
-        result.errors.push({ row: rowNo, message: `Unknown school code “${siteCode}”.` });
+        result.errors.push({ row: rowNo, message: `Unknown school code "${siteCode}".` });
         result.skipped++;
         return;
       }
@@ -167,9 +251,64 @@ export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
   });
 }
 
+
+
 export async function importStaffCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
   const { rows } = parseCsv(csv);
+  
+  if (isSupabaseConfigured()) {
+    const result = emptyResult();
+    const sites = await getSites();
+    
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      const rowNo = index + 2;
+      const site = findSite(sites, csvCell(row, "site_code", "site"));
+      if (!site) {
+        result.errors.push({ row: rowNo, message: "Unknown school code." });
+        result.skipped++;
+        continue;
+      }
+      if (lockedSiteId && site.id !== lockedSiteId) {
+        result.errors.push({ row: rowNo, message: `Row is for ${site.code}, not this school.` });
+        result.skipped++;
+        continue;
+      }
+      try {
+        if (!user.isSystemAdmin) assertSiteAdmin(user, site.id);
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "No permission.",
+        });
+        result.skipped++;
+        continue;
+      }
+      const email = csvCell(row, "email").toLowerCase();
+      const fullName = csvCell(row, "full_name", "name");
+      const roleRaw = csvCell(row, "role").toLowerCase();
+      const role: SiteRole = roleRaw.includes("admin") ? "site_admin" : "teacher";
+      if (!email || !fullName) {
+        result.errors.push({ row: rowNo, message: "Need full_name and email." });
+        result.skipped++;
+        continue;
+      }
+      
+      try {
+        await addStaffSupabase(site.id, { fullName, email, role });
+        result.created++;
+      } catch (createError) {
+        result.errors.push({
+          row: rowNo,
+          message: createError instanceof Error ? createError.message : "Database error.",
+        });
+        result.skipped++;
+      }
+    }
+    return result;
+  }
+  
   return mutateState((state) => {
     const result = emptyResult();
     rows.forEach((row, index) => {
@@ -237,9 +376,133 @@ export async function importStaffCsv(csv: string, lockedSiteId?: string) {
   });
 }
 
+
+
 export async function importCoursesCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
   const { rows } = parseCsv(csv);
+  
+  if (isSupabaseConfigured()) {
+    const result = emptyResult();
+    const sites = await getSites();
+    const years = await getYears();
+    const gradeLevels = await getGradeLevels();
+    const state = loadState();
+    
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      const rowNo = index + 2;
+      const site = findSite(sites, csvCell(row, "site_code", "site"));
+      const year = findYear(years, csvCell(row, "year", "academic_year"));
+      const grade = findGrade(gradeLevels, csvCell(row, "grade", "grade_level"));
+      const name = csvCell(row, "name", "course");
+      if (!site || !year || !grade || !name) {
+        result.errors.push({
+          row: rowNo,
+          message: "Need site_code, year, grade, and name.",
+        });
+        result.skipped++;
+        continue;
+      }
+      if (lockedSiteId && site.id !== lockedSiteId) {
+        result.errors.push({ row: rowNo, message: `Row is for ${site.code}, not this school.` });
+        result.skipped++;
+        continue;
+      }
+      try {
+        if (!user.isSystemAdmin) assertSiteAdmin(user, site.id);
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "No permission.",
+        });
+        result.skipped++;
+        continue;
+      }
+      const structure = siteTermStructure(state, site.id, year.id);
+      if (!structure) {
+        result.errors.push({
+          row: rowNo,
+          message: `Set terms for ${site.code} in ${year.name} before importing courses.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      const template = findTemplateForGrade(state, year.id, grade.id, structure);
+      if (!template) {
+        result.errors.push({
+          row: rowNo,
+          message: `No published ${structure} report card for ${grade.nameEn} in ${year.name}.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const supabase = await createServerSupabase();
+      const { data: existing } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("site_id", site.id)
+        .eq("academic_year_id", year.id)
+        .eq("name", name)
+        .maybeSingle();
+      
+      try {
+        let courseId: string;
+        if (existing) {
+          await updateCourseSupabase(existing.id, {
+            gradeLevelId: grade.id,
+            templateId: template.id,
+          });
+          courseId = existing.id;
+          result.updated++;
+        } else {
+          const course = await createCourseSupabase(site.id, {
+            name,
+            academicYearId: year.id,
+            gradeLevelId: grade.id,
+            templateId: template.id,
+          });
+          courseId = course.id;
+          result.created++;
+        }
+        
+        const teacherEmail = csvCell(row, "teacher_email", "teacher").toLowerCase();
+        if (teacherEmail) {
+          const profile = await getProfileByEmailSupabase(teacherEmail);
+          if (!profile) {
+            result.errors.push({
+              row: rowNo,
+              message: `Teacher ${teacherEmail} is not on staff. Import staff first.`,
+            });
+          } else {
+            const { data: existingTeachers } = await supabase
+              .from("course_teachers")
+              .select("*")
+              .eq("course_id", courseId)
+              .eq("profile_id", profile.id)
+              .maybeSingle();
+            
+            if (!existingTeachers) {
+              await setCourseTeachersSupabase(courseId, [{
+                profileId: profile.id,
+                canGrade: true,
+                canPrint: true,
+              }]);
+            }
+          }
+        }
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "Database error.",
+        });
+        result.skipped++;
+      }
+    }
+    return result;
+  }
+  
   return mutateState((state) => {
     const result = emptyResult();
     rows.forEach((row, index) => {
@@ -332,6 +595,8 @@ export async function importCoursesCsv(csv: string, lockedSiteId?: string) {
     return result;
   });
 }
+
+
 
 const SCALE_14_MARKS = [
   { code: "1", labelEn: "Beginning", labelEs: "Principiante" },
