@@ -50,6 +50,66 @@ For production use or development with real data:
 
 **Important for production deployments**: Demo mode and demo passwords are blocked when `NODE_ENV=production`. You must configure Supabase for production use.
 
+## Demo Academy seed script
+
+For live presentations at **studentreportcards.com**, use the demo school seeding script to create a complete, realistic demo school "Demo Academy" in your production Supabase database:
+
+### Required environment variables
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+DEMO_ADMIN_PASSWORD=your-secure-password
+DEMO_TEACHER_PASSWORD=your-secure-password  # Optional
+```
+
+### Commands
+
+```bash
+# Seed demo school (fails if already exists)
+npm run demo:seed
+
+# Reset and recreate demo school (deletes existing data first)
+npm run demo:reset
+```
+
+### What gets created
+
+- **Site**: Demo Academy (code: `DEMO`)
+- **Academic year**: 2026–27 with 3 terms
+- **Staff**: 1 site admin + 4 teachers (with login accounts)
+- **Students**: 30 students across grades 3, 4, and 5
+- **Courses**: 6 homeroom courses
+- **Template**: Elementary progress report with bilingual items
+- **Grades**: Complete grades for Trimester 1 so report cards print nicely
+
+### Demo login credentials
+
+After seeding, you can log in with:
+
+- **Site Admin**: `demo@studentreportcards.com` (password from `DEMO_ADMIN_PASSWORD`)
+- **Teacher** (optional): `teacher@demo.academy` (password from `DEMO_TEACHER_PASSWORD`)
+
+### Sample CSV files
+
+The [`demo/`](demo/) directory contains sample CSV files matching the seeded data. Use these to demonstrate the CSV import functionality during presentations:
+
+- `students.csv` - 30 students
+- `staff.csv` - 5 staff members
+- `courses.csv` - 6 courses
+- `enrollments.csv` - Student enrollments
+- `grades.csv` - Sample grades
+
+### Safety
+
+The script is **scoped to Demo Academy only**. It will never touch data from other schools. The reset command deletes only:
+- The Demo Academy site and its terms
+- Students, courses, enrollments, and grades for Demo Academy
+- Site memberships for Demo Academy staff
+- Auth users for `demo@studentreportcards.com` and `teacher@demo.academy`
+
+District-wide data (grade levels, academic years, grade scales, templates) is reused if it exists or created if missing.
+
 ### Staff import and authentication
 
 When importing staff via CSV, the system automatically creates Supabase Auth users so staff members can sign in. This requires the `SUPABASE_SERVICE_ROLE_KEY` environment variable:
