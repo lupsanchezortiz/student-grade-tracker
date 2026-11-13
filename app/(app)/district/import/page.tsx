@@ -12,9 +12,9 @@ export default async function DistrictImportPage() {
       <PageHeader
         eyebrow="District office"
         title="CSV import"
-        description="Load students, staff, courses, enrollments, and attendance for any school. Report-card line items are imported from the template editor."
+        description="Load students, staff, courses, enrollments, grades, and attendance for any school. Report-card line items are imported from the template editor."
       />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Students</CardTitle>
@@ -53,6 +53,18 @@ export default async function DistrictImportPage() {
               Key: school + year + grade + course name + student number. Enrolls students into courses.
             </p>
             <CsvImportDialog kind="enrollments" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Grades</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              Key: school + year + course + student + term + template item. Each row is one mark or comment.
+              Identify items by title or print code. Existing grades are updated (idempotent).
+            </p>
+            <CsvImportDialog kind="grades" />
           </CardContent>
         </Card>
         <Card>

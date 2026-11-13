@@ -33,6 +33,13 @@ Reads common high frequency words by sight,Lee palabras comunes de alta frecuenc
 Teacher Comments,Comentarios del maestro,Comment,c,08,500
 `;
 
+export const SAMPLE_GRADES = `site_code,year,course_name,student_number,term,template_item,mark_code,comment
+MPL,2026–27,Grade 3 Homeroom — Lee,20260010,1,Names uppercase letters,3,
+MPL,2026–27,Grade 3 Homeroom — Lee,20260010,1,Names lowercase letters,4,
+MPL,2026–27,Grade 3 Homeroom — Lee,20260011,1,Names uppercase letters,2,
+MPL,2026–27,Grade 3 Homeroom — Lee,20260011,1,Teacher Comments,,Great progress this term!
+`;
+
 export const SAMPLES = {
   students: SAMPLE_STUDENTS,
   staff: SAMPLE_STAFF,
@@ -40,6 +47,7 @@ export const SAMPLES = {
   enrollments: SAMPLE_ENROLLMENTS,
   attendance: SAMPLE_ATTENDANCE,
   template_items: SAMPLE_TEMPLATE_ITEMS,
+  grades: SAMPLE_GRADES,
 } as const;
 
 export type ImportKind = keyof typeof SAMPLES;
