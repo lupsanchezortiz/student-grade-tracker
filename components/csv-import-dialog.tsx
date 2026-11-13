@@ -20,6 +20,7 @@ const TITLES: Record<ImportKind, string> = {
   staff: "Import staff",
   courses: "Import courses",
   enrollments: "Import enrollments",
+  grades: "Import grades",
   attendance: "Import attendance",
   template_items: "Import line items",
 };
@@ -115,6 +116,17 @@ export function CsvImportDialog({
             Key: school + year + grade + course name + student number. Each row enrolls one student
             in one course. Students and courses must already exist — import them first. Duplicate
             enrollments are skipped.
+          </p>
+        ) : null}
+        {kind === "grades" ? (
+          <p className="text-sm text-muted-foreground">
+            Key: school + year + course name + student number + term + template item. Each row is
+            one grade or comment for one student in one course. Identify items by{" "}
+            <span className="font-medium text-foreground">template_item</span> (title) or{" "}
+            <span className="font-medium text-foreground">print_code</span>. For mark items, provide{" "}
+            <span className="font-medium text-foreground">mark_code</span> (1, 2, 3, 4). For
+            comment items, use <span className="font-medium text-foreground">comment</span>.
+            Students, courses, and enrollments must exist. Re-importing updates existing grades.
           </p>
         ) : null}
         {kind === "attendance" ? (

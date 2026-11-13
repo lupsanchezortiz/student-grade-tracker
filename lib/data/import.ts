@@ -1096,11 +1096,431 @@ export async function importAttendanceCsv(csv: string, lockedSiteId?: string) {
   });
 }
 
+export async function importGradesCsv(csv: string, lockedSiteId?: string) {
+  const user = await requireUser();
+  const { rows } = parseCsv(csv);
+  
+  if (isSupabaseConfigured()) {
+    const result = emptyResult();
+    const sites = await getSites();
+    const years = await getYears();
+    const supabase = await createServerSupabase();
+    const state = loadState();
+    
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      const rowNo = index + 2;
+      const site = findSite(sites, csvCell(row, "site_code", "site"));
+      const year = findYear(years, csvCell(row, "year", "academic_year"));
+      const courseName = csvCell(row, "course_name", "course");
+      const studentNumber = csvCell(row, "student_number", "student_id", "id");
+      const termRaw = csvCell(row, "term", "marking_period", "grading_period", "period");
+      
+      if (!site || !year || !courseName || !studentNumber || !termRaw) {
+        result.errors.push({
+          row: rowNo,
+          message: "Need site_code, year, course_name, student_number, and term.",
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      if (lockedSiteId && site.id !== lockedSiteId) {
+        result.errors.push({ row: rowNo, message: `Row is for ${site.code}, not this school.` });
+        result.skipped++;
+        continue;
+      }
+      
+      try {
+        if (!user.isSystemAdmin) assertSiteAdmin(user, site.id);
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "No permission.",
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const { data: course } = await supabase
+        .from("courses")
+        .select("*")
+        .eq("site_id", site.id)
+        .eq("academic_year_id", year.id)
+        .eq("name", courseName)
+        .maybeSingle();
+      
+      if (!course) {
+        result.errors.push({
+          row: rowNo,
+          message: `Course "${courseName}" not found for ${site.code} in ${year.name}. Import courses first.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const { data: student } = await supabase
+        .from("students")
+        .select("*")
+        .eq("site_id", site.id)
+        .eq("student_number", studentNumber)
+        .maybeSingle();
+      
+      if (!student) {
+        result.errors.push({
+          row: rowNo,
+          message: `Student ${studentNumber} not found at ${site.code}. Import students first.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const { data: enrollment } = await supabase
+        .from("enrollments")
+        .select("*")
+        .eq("course_id", course.id)
+        .eq("student_id", student.id)
+        .maybeSingle();
+      
+      if (!enrollment) {
+        result.errors.push({
+          row: rowNo,
+          message: `Student ${studentNumber} is not enrolled in "${courseName}". Import enrollments first.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const term = findTerm(state, site.id, year.id, termRaw);
+      if (!term) {
+        result.errors.push({
+          row: rowNo,
+          message: `Term "${termRaw}" not found for ${site.code} in ${year.name}.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const { data: termDb } = await supabase
+        .from("terms")
+        .select("*")
+        .eq("id", term.id)
+        .maybeSingle();
+      
+      if (!termDb) {
+        result.errors.push({
+          row: rowNo,
+          message: `Term "${termRaw}" not found in database.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const itemTitle = csvCell(row, "template_item", "item", "line_item");
+      const printCode = csvCell(row, "print_code", "printcode");
+      
+      if (!itemTitle && !printCode) {
+        result.errors.push({
+          row: rowNo,
+          message: "Need template_item or print_code to identify which line item to grade.",
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const { data: templateItems } = await supabase
+        .from("template_items")
+        .select(`
+          *,
+          template_sections!inner (
+            template_id
+          )
+        `)
+        .eq("template_sections.template_id", course.template_id);
+      
+      if (!templateItems || templateItems.length === 0) {
+        result.errors.push({
+          row: rowNo,
+          message: `No template items found for course template.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      let templateItem = templateItems.find((item: any) => {
+        if (printCode && item.print_code) {
+          return printCodesMatch(item.print_code, printCode);
+        }
+        if (itemTitle) {
+          const titleMatch = item.title_en.toLowerCase() === itemTitle.toLowerCase() ||
+                            item.title_es.toLowerCase() === itemTitle.toLowerCase();
+          return titleMatch;
+        }
+        return false;
+      });
+      
+      if (!templateItem) {
+        result.errors.push({
+          row: rowNo,
+          message: `Template item "${itemTitle || printCode}" not found in course template.`,
+        });
+        result.skipped++;
+        continue;
+      }
+      
+      const markCode = csvCell(row, "mark_code", "mark", "grade", "score");
+      const comment = csvCell(row, "comment");
+      
+      let markId: string | null = null;
+      if (markCode && templateItem.item_type === "mark") {
+        const { data: scaleMarks } = await supabase
+          .from("grade_scale_marks")
+          .select("*")
+          .eq("scale_id", templateItem.grade_scale_id || "");
+        
+        const mark = (scaleMarks || []).find((m: any) => 
+          m.code.toLowerCase() === markCode.toLowerCase()
+        );
+        
+        if (!mark) {
+          result.errors.push({
+            row: rowNo,
+            message: `Mark code "${markCode}" not found in the scale for this item.`,
+          });
+          result.skipped++;
+          continue;
+        }
+        markId = mark.id;
+      }
+      
+      try {
+        const { data: existing } = await supabase
+          .from("grades")
+          .select("id")
+          .eq("enrollment_id", enrollment.id)
+          .eq("term_id", termDb.id)
+          .eq("template_item_id", templateItem.id)
+          .maybeSingle();
+        
+        if (existing) {
+          await supabase
+            .from("grades")
+            .update({
+              mark_id: markId,
+              comment: comment || "",
+            })
+            .eq("id", existing.id);
+          result.updated++;
+        } else {
+          await supabase
+            .from("grades")
+            .insert({
+              enrollment_id: enrollment.id,
+              term_id: termDb.id,
+              template_item_id: templateItem.id,
+              mark_id: markId,
+              comment: comment || "",
+            });
+          result.created++;
+        }
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "Database error.",
+        });
+        result.skipped++;
+      }
+    }
+    
+    return result;
+  }
+  
+  return mutateState((state) => {
+    const result = emptyResult();
+    if (!state.grades) state.grades = [];
+    
+    rows.forEach((row, index) => {
+      const rowNo = index + 2;
+      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
+      const year = findYear(state.years, csvCell(row, "year", "academic_year"));
+      const courseName = csvCell(row, "course_name", "course");
+      const studentNumber = csvCell(row, "student_number", "student_id", "id");
+      const termRaw = csvCell(row, "term", "marking_period", "grading_period", "period");
+      
+      if (!site || !year || !courseName || !studentNumber || !termRaw) {
+        result.errors.push({
+          row: rowNo,
+          message: "Need site_code, year, course_name, student_number, and term.",
+        });
+        result.skipped++;
+        return;
+      }
+      
+      if (lockedSiteId && site.id !== lockedSiteId) {
+        result.errors.push({ row: rowNo, message: `Row is for ${site.code}, not this school.` });
+        result.skipped++;
+        return;
+      }
+      
+      try {
+        if (!user.isSystemAdmin) assertSiteAdmin(user, site.id);
+      } catch (error) {
+        result.errors.push({
+          row: rowNo,
+          message: error instanceof Error ? error.message : "No permission.",
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const course = state.courses.find(
+        (c) => c.siteId === site.id && c.academicYearId === year.id && c.name === courseName,
+      );
+      
+      if (!course) {
+        result.errors.push({
+          row: rowNo,
+          message: `Course "${courseName}" not found for ${site.code} in ${year.name}. Import courses first.`,
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const student = state.students.find(
+        (s) => s.siteId === site.id && s.studentNumber === studentNumber,
+      );
+      
+      if (!student) {
+        result.errors.push({
+          row: rowNo,
+          message: `Student ${studentNumber} not found at ${site.code}. Import students first.`,
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const enrollment = state.enrollments.find(
+        (e) => e.courseId === course.id && e.studentId === student.id,
+      );
+      
+      if (!enrollment) {
+        result.errors.push({
+          row: rowNo,
+          message: `Student ${studentNumber} is not enrolled in "${courseName}". Import enrollments first.`,
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const term = findTerm(state, site.id, year.id, termRaw);
+      if (!term) {
+        result.errors.push({
+          row: rowNo,
+          message: `Term "${termRaw}" not found for ${site.code} in ${year.name}.`,
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const itemTitle = csvCell(row, "template_item", "item", "line_item");
+      const printCode = csvCell(row, "print_code", "printcode");
+      
+      if (!itemTitle && !printCode) {
+        result.errors.push({
+          row: rowNo,
+          message: "Need template_item or print_code to identify which line item to grade.",
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const sectionIds = state.sections
+        .filter((s) => s.templateId === course.templateId)
+        .map((s) => s.id);
+      
+      const templateItems = state.items.filter((item) => sectionIds.includes(item.sectionId));
+      
+      if (templateItems.length === 0) {
+        result.errors.push({
+          row: rowNo,
+          message: `No template items found for course template.`,
+        });
+        result.skipped++;
+        return;
+      }
+      
+      let templateItem = templateItems.find((item) => {
+        if (printCode && item.printCode) {
+          return printCodesMatch(item.printCode, printCode);
+        }
+        if (itemTitle) {
+          const titleMatch = item.titleEn.toLowerCase() === itemTitle.toLowerCase() ||
+                            item.titleEs.toLowerCase() === itemTitle.toLowerCase();
+          return titleMatch;
+        }
+        return false;
+      });
+      
+      if (!templateItem) {
+        result.errors.push({
+          row: rowNo,
+          message: `Template item "${itemTitle || printCode}" not found in course template.`,
+        });
+        result.skipped++;
+        return;
+      }
+      
+      const markCode = csvCell(row, "mark_code", "mark", "grade", "score");
+      const comment = csvCell(row, "comment");
+      
+      let markId: string | null = null;
+      if (markCode && templateItem.itemType === "mark") {
+        const scaleMarks = state.marks.filter((m) => m.scaleId === templateItem!.gradeScaleId);
+        const mark = scaleMarks.find((m) => m.code.toLowerCase() === markCode.toLowerCase());
+        
+        if (!mark) {
+          result.errors.push({
+            row: rowNo,
+            message: `Mark code "${markCode}" not found in the scale for this item.`,
+          });
+          result.skipped++;
+          return;
+        }
+        markId = mark.id;
+      }
+      
+      const existing = state.grades.find(
+        (g) => g.enrollmentId === enrollment.id && g.termId === term.id && g.templateItemId === templateItem!.id,
+      );
+      
+      if (existing) {
+        existing.markId = markId;
+        existing.comment = comment || "";
+        result.updated++;
+      } else {
+        assertDemoModeAllowed();
+        state.grades.push({
+          id: id(),
+          enrollmentId: enrollment.id,
+          termId: term.id,
+          templateItemId: templateItem.id,
+          markId,
+          comment: comment || "",
+        });
+        result.created++;
+      }
+    });
+    
+    return result;
+  });
+}
+
 export async function runImport(kind: ImportKind, csv: string, opts?: { siteId?: string; templateId?: string }) {
   if (kind === "students") return importStudentsCsv(csv, opts?.siteId);
   if (kind === "staff") return importStaffCsv(csv, opts?.siteId);
   if (kind === "courses") return importCoursesCsv(csv, opts?.siteId);
   if (kind === "enrollments") return importEnrollmentsCsv(csv, opts?.siteId);
+  if (kind === "grades") return importGradesCsv(csv, opts?.siteId);
   if (kind === "attendance") return importAttendanceCsv(csv, opts?.siteId);
   if (!opts?.templateId) throw new Error("Template is required for item import.");
   return importTemplateItemsCsv(opts.templateId, csv);
