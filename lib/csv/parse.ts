@@ -7,6 +7,9 @@ export type ImportResult = {
   updated: number;
   skipped: number;
   errors: ImportError[];
+  authInvited?: number;
+  authLinked?: number;
+  authSkipped?: number;
 };
 
 export function parseCsv(text: string): { headers: string[]; rows: CsvRow[] } {

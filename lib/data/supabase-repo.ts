@@ -1,4 +1,5 @@
 import { createServerSupabase } from "@/lib/supabase/server";
+import { ensureAuthUser, type AuthUserResult } from "@/lib/auth/admin";
 import type {
   Student,
   SiteRole,
@@ -148,7 +149,14 @@ export async function listStaffSupabase(
 export async function addStaffSupabase(
   siteId: string,
   input: { fullName: string; email: string; role: SiteRole },
-): Promise<{ id: string; profileId: string; siteId: string; role: SiteRole; profile: Profile }> {
+): Promise<{ 
+  id: string; 
+  profileId: string; 
+  siteId: string; 
+  role: SiteRole; 
+  profile: Profile;
+  authResult: AuthUserResult;
+}> {
   const supabase = await createServerSupabase();
   const email = input.email.trim().toLowerCase();
 
@@ -157,6 +165,8 @@ export async function addStaffSupabase(
     .select("*")
     .eq("email", email)
     .maybeSingle();
+
+  const profileCreated = !profile;
 
   if (!profile) {
     const { data: newProfile, error: profileError } = await supabase
@@ -172,6 +182,10 @@ export async function addStaffSupabase(
     if (profileError) throw new Error(`Failed to create profile: ${profileError.message}`);
     profile = newProfile;
   }
+
+  const authResult = profileCreated
+    ? await ensureAuthUser(email, input.fullName.trim(), profile.id)
+    : await ensureAuthUser(email, input.fullName.trim());
 
   const { data: existing } = await supabase
     .from("site_memberships")
@@ -201,6 +215,7 @@ export async function addStaffSupabase(
         fullName: profile.full_name,
         isSystemAdmin: profile.is_system_admin,
       },
+      authResult,
     };
   }
 
@@ -227,6 +242,7 @@ export async function addStaffSupabase(
       fullName: profile.full_name,
       isSystemAdmin: profile.is_system_admin,
     },
+    authResult,
   };
 }
 

@@ -65,17 +65,29 @@ export function CsvImportDialog({
       const next = await importCsvAction({ kind, csv: text, siteId, templateId });
       setResult(next);
       if (next.errors.length === 0) {
-        toast.success(
-          `Imported ${next.created} new and updated ${next.updated}.`,
-        );
+        let message = `Imported ${next.created} new and updated ${next.updated}.`;
+        if (kind === "staff" && (next.authInvited || next.authLinked || next.authSkipped)) {
+          const authDetails: string[] = [];
+          if (next.authInvited) authDetails.push(`${next.authInvited} invited`);
+          if (next.authLinked) authDetails.push(`${next.authLinked} linked`);
+          if (next.authSkipped) authDetails.push(`${next.authSkipped} login skipped`);
+          message += ` Login accounts: ${authDetails.join(", ")}.`;
+        }
+        toast.success(message);
         setOpen(false);
         setText("");
         setResult(null);
         router.refresh();
       } else {
-        toast.message(
-          `${next.created} created, ${next.updated} updated, ${next.skipped} skipped.`,
-        );
+        let message = `${next.created} created, ${next.updated} updated, ${next.skipped} skipped.`;
+        if (kind === "staff" && (next.authInvited || next.authLinked || next.authSkipped)) {
+          const authDetails: string[] = [];
+          if (next.authInvited) authDetails.push(`${next.authInvited} invited`);
+          if (next.authLinked) authDetails.push(`${next.authLinked} linked`);
+          if (next.authSkipped) authDetails.push(`${next.authSkipped} login skipped`);
+          message += ` Login accounts: ${authDetails.join(", ")}.`;
+        }
+        toast.message(message);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Import failed.");
