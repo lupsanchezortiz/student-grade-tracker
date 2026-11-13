@@ -260,6 +260,9 @@ export async function importStaffCsv(csv: string, lockedSiteId?: string) {
   
   if (isSupabaseConfigured()) {
     const result = emptyResult();
+    result.authInvited = 0;
+    result.authLinked = 0;
+    result.authSkipped = 0;
     const sites = await getSites();
     
     for (let index = 0; index < rows.length; index++) {
@@ -297,8 +300,24 @@ export async function importStaffCsv(csv: string, lockedSiteId?: string) {
       }
       
       try {
-        await addStaffSupabase(site.id, { fullName, email, role });
+        const staffResult = await addStaffSupabase(site.id, { fullName, email, role });
         result.created++;
+        
+        if (staffResult.authResult.success) {
+          if (staffResult.authResult.action === "invited") {
+            result.authInvited!++;
+          } else if (staffResult.authResult.action === "linked") {
+            result.authLinked!++;
+          }
+        } else {
+          result.authSkipped!++;
+          if (staffResult.authResult.reason !== "SUPABASE_SERVICE_ROLE_KEY not configured") {
+            result.errors.push({
+              row: rowNo,
+              message: `Staff created but login not set up: ${staffResult.authResult.reason}`,
+            });
+          }
+        }
       } catch (createError) {
         result.errors.push({
           row: rowNo,

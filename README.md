@@ -50,6 +50,15 @@ For production use or development with real data:
 
 **Important for production deployments**: Demo mode and demo passwords are blocked when `NODE_ENV=production`. You must configure Supabase for production use.
 
+### Staff import and authentication
+
+When importing staff via CSV, the system automatically creates Supabase Auth users so staff members can sign in. This requires the `SUPABASE_SERVICE_ROLE_KEY` environment variable:
+
+- **`SUPABASE_SERVICE_ROLE_KEY`** (optional): Service role key from your Supabase project settings. Required for staff CSV imports to create login accounts. If not set, staff records are still created in the database, but login accounts are not set up (the import result will indicate how many were skipped).
+- **In Vercel**: Add this as an environment variable in your project settings. Keep it secret — never expose it to the client.
+
+The import uses `inviteUserByEmail` to send a setup link rather than generating plaintext passwords. If an auth user with that email already exists, it is linked to the staff profile. Staff rows with invalid or missing emails are still imported to the database, but no login account is created (a warning is reported for that row).
+
 ## How a gradebook is created
 
 1. District creates a school year (name and start/end dates).
