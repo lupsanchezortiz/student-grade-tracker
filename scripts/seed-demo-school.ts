@@ -81,26 +81,18 @@ type GradeScaleMark = {
   isPassing: boolean;
 };
 
-type ReportCardTemplate = {
-  id: string;
-  academicYearId: string;
-  gradeScaleId: string;
-  name: string;
-  status: "draft" | "published";
-  termStructure: "semester" | "trimester" | "quarter";
-  layout: any;
-  locale: "en" | "es";
-  html: string;
-};
-
 async function reset() {
   console.log("\n🗑️  Resetting Demo Academy...");
   
   // Find demo site
-  const { data: sites } = await supabase
+  const { data: sites, error: sitesError } = await supabase
     .from("sites")
     .select("id")
     .eq("code", DEMO_SITE_CODE);
+  
+  if (sitesError) {
+    throw new Error(`Failed to find demo site: ${sitesError.message}`);
+  }
   
   if (!sites || sites.length === 0) {
     console.log("ℹ️  No existing Demo Academy found");
@@ -117,10 +109,9 @@ async function reset() {
     .eq("site_id", siteId);
   
   if (coursesError) {
-    console.error("   Error deleting courses:", coursesError.message);
-  } else {
-    console.log("   ✓ Deleted courses and related data");
+    throw new Error(`Failed to delete courses: ${coursesError.message}`);
   }
+  console.log("   ✓ Deleted courses and related data");
   
   // Delete students
   const { error: studentsError } = await supabase
@@ -129,38 +120,57 @@ async function reset() {
     .eq("site_id", siteId);
   
   if (studentsError) {
-    console.error("   Error deleting students:", studentsError.message);
-  } else {
-    console.log("   ✓ Deleted students");
+    throw new Error(`Failed to delete students: ${studentsError.message}`);
   }
+  console.log("   ✓ Deleted students");
   
-  // Delete site memberships
+  // Delete site memberships (must be before deleting profiles/auth users)
   const { error: membershipsError } = await supabase
     .from("site_memberships")
     .delete()
     .eq("site_id", siteId);
   
   if (membershipsError) {
-    console.error("   Error deleting memberships:", membershipsError.message);
-  } else {
-    console.log("   ✓ Deleted site memberships");
+    throw new Error(`Failed to delete memberships: ${membershipsError.message}`);
   }
+  console.log("   ✓ Deleted site memberships");
   
-  // Delete demo auth users
+  // Delete demo auth users (cascades to profiles via FK)
   const demoEmails = [
     "demo@studentreportcards.com",
     "teacher@demo.academy",
+    "taylor.chen@demo.academy",
+    "jordan.kim@demo.academy",
+    "casey.martinez@demo.academy",
   ];
   
+  const { data: usersData, error: listError } = await supabase.auth.admin.listUsers();
+  if (listError) {
+    throw new Error(`Failed to list auth users: ${listError.message}`);
+  }
+  
   for (const email of demoEmails) {
-    const { data: users } = await supabase.auth.admin.listUsers();
-    const demoUser = users.users.find(u => u.email?.toLowerCase() === email);
+    const demoUser = usersData.users.find(u => u.email?.toLowerCase() === email);
     
     if (demoUser) {
-      await supabase.auth.admin.deleteUser(demoUser.id);
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(demoUser.id);
+      if (deleteError) {
+        throw new Error(`Failed to delete auth user ${email}: ${deleteError.message}`);
+      }
       console.log(`   ✓ Deleted auth user: ${email}`);
     }
   }
+  
+  // Delete demo template (district-level, not site-scoped in schema)
+  const { error: templateError } = await supabase
+    .from("report_card_templates")
+    .delete()
+    .eq("name", "Demo Elementary Progress Report");
+  
+  if (templateError) {
+    throw new Error(`Failed to delete demo template: ${templateError.message}`);
+  }
+  console.log("   ✓ Deleted demo template");
   
   // Delete site
   const { error: siteError } = await supabase
@@ -169,10 +179,9 @@ async function reset() {
     .eq("id", siteId);
   
   if (siteError) {
-    console.error("   Error deleting site:", siteError.message);
-  } else {
-    console.log("   ✓ Deleted demo site");
+    throw new Error(`Failed to delete site: ${siteError.message}`);
   }
+  console.log("   ✓ Deleted demo site");
   
   return siteId;
 }
@@ -181,10 +190,14 @@ async function seed() {
   console.log("\n🌱 Seeding Demo Academy...");
   
   // Get or create grade levels (district catalog)
-  const { data: existingLevels } = await supabase
+  const { data: existingLevels, error: levelsError } = await supabase
     .from("grade_levels")
     .select("*")
     .order("sort_order");
+  
+  if (levelsError) {
+    throw new Error(`Failed to fetch grade levels: ${levelsError.message}`);
+  }
   
   let gradeLevels: GradeLevel[] = [];
   
@@ -202,7 +215,7 @@ async function seed() {
       { code: "8", nameEn: "Grade 8", nameEs: "8.° grado", sortOrder: 8 },
     ];
     
-    const { data: createdLevels } = await supabase
+    const { data: createdLevels, error: createLevelsError } = await supabase
       .from("grade_levels")
       .insert(levels.map(l => ({
         code: l.code,
@@ -212,7 +225,11 @@ async function seed() {
       })))
       .select();
     
-    gradeLevels = createdLevels!.map(l => ({
+    if (createLevelsError) {
+      throw new Error(`Failed to create grade levels: ${createLevelsError.message}`);
+    }
+    
+    gradeLevels = createdLevels.map(l => ({
       id: l.id,
       code: l.code,
       nameEn: l.name_en,
@@ -233,16 +250,20 @@ async function seed() {
   }
   
   // Get or create academic year
-  const { data: existingYears } = await supabase
+  const { data: existingYears, error: yearsError } = await supabase
     .from("academic_years")
     .select("*")
     .eq("name", "2026–27");
+  
+  if (yearsError) {
+    throw new Error(`Failed to fetch academic years: ${yearsError.message}`);
+  }
   
   let academicYear: AcademicYear;
   
   if (!existingYears || existingYears.length === 0) {
     console.log("   Creating academic year 2026–27...");
-    const { data: createdYear } = await supabase
+    const { data: createdYear, error: createYearError } = await supabase
       .from("academic_years")
       .insert({
         name: "2026–27",
@@ -253,11 +274,15 @@ async function seed() {
       .select()
       .single();
     
+    if (createYearError) {
+      throw new Error(`Failed to create academic year: ${createYearError.message}`);
+    }
+    
     academicYear = {
-      id: createdYear!.id,
-      name: createdYear!.name,
-      startDate: createdYear!.start_date,
-      endDate: createdYear!.end_date,
+      id: createdYear.id,
+      name: createdYear.name,
+      startDate: createdYear.start_date,
+      endDate: createdYear.end_date,
     };
     
     console.log("   ✓ Created academic year");
@@ -272,23 +297,31 @@ async function seed() {
   }
   
   // Get or create grade scale
-  const { data: existingScales } = await supabase
+  const { data: existingScales, error: scalesError } = await supabase
     .from("grade_scales")
     .select("*")
     .eq("name", "E / S / N / U");
+  
+  if (scalesError) {
+    throw new Error(`Failed to fetch grade scales: ${scalesError.message}`);
+  }
   
   let gradeScale: GradeScale;
   let marks: GradeScaleMark[] = [];
   
   if (!existingScales || existingScales.length === 0) {
     console.log("   Creating grade scale...");
-    const { data: createdScale } = await supabase
+    const { data: createdScale, error: createScaleError } = await supabase
       .from("grade_scales")
       .insert({ name: "E / S / N / U" })
       .select()
       .single();
     
-    gradeScale = { id: createdScale!.id, name: createdScale!.name };
+    if (createScaleError) {
+      throw new Error(`Failed to create grade scale: ${createScaleError.message}`);
+    }
+    
+    gradeScale = { id: createdScale.id, name: createdScale.name };
     
     const markData = [
       { code: "E", labelEn: "Exceeds", labelEs: "Sobresaliente", sortOrder: 1, isPassing: true },
@@ -297,7 +330,7 @@ async function seed() {
       { code: "U", labelEn: "Unsatisfactory", labelEs: "Insatisfactorio", sortOrder: 4, isPassing: false },
     ];
     
-    const { data: createdMarks } = await supabase
+    const { data: createdMarks, error: createMarksError } = await supabase
       .from("grade_scale_marks")
       .insert(markData.map(m => ({
         scale_id: gradeScale.id,
@@ -309,7 +342,11 @@ async function seed() {
       })))
       .select();
     
-    marks = createdMarks!.map(m => ({
+    if (createMarksError) {
+      throw new Error(`Failed to create grade scale marks: ${createMarksError.message}`);
+    }
+    
+    marks = createdMarks.map(m => ({
       id: m.id,
       scaleId: m.scale_id,
       code: m.code,
@@ -323,13 +360,17 @@ async function seed() {
   } else {
     gradeScale = { id: existingScales[0].id, name: existingScales[0].name };
     
-    const { data: existingMarks } = await supabase
+    const { data: existingMarks, error: marksError } = await supabase
       .from("grade_scale_marks")
       .select("*")
       .eq("scale_id", gradeScale.id)
       .order("sort_order");
     
-    marks = existingMarks!.map(m => ({
+    if (marksError) {
+      throw new Error(`Failed to fetch grade scale marks: ${marksError.message}`);
+    }
+    
+    marks = existingMarks.map(m => ({
       id: m.id,
       scaleId: m.scale_id,
       code: m.code,
@@ -344,7 +385,7 @@ async function seed() {
   
   // Create Demo Academy site
   console.log(`   Creating ${DEMO_SITE_NAME}...`);
-  const { data: site } = await supabase
+  const { data: site, error: siteError } = await supabase
     .from("sites")
     .insert({
       name: DEMO_SITE_NAME,
@@ -354,7 +395,11 @@ async function seed() {
     .select()
     .single();
   
-  const siteId = site!.id;
+  if (siteError) {
+    throw new Error(`Failed to create site: ${siteError.message}`);
+  }
+  
+  const siteId = site.id;
   console.log(`   ✓ Created site: ${siteId}`);
   
   // Create terms for demo site
@@ -389,7 +434,7 @@ async function seed() {
     },
   ];
   
-  const { data: terms } = await supabase
+  const { data: terms, error: termsError } = await supabase
     .from("terms")
     .insert(termData.map(t => ({
       academic_year_id: t.academicYearId,
@@ -402,11 +447,15 @@ async function seed() {
     })))
     .select();
   
-  console.log(`   ✓ Created ${terms!.length} terms`);
+  if (termsError) {
+    throw new Error(`Failed to create terms: ${termsError.message}`);
+  }
   
-  // Create report card template
+  console.log(`   ✓ Created ${terms.length} terms`);
+  
+  // Create report card template (district-level, not site-scoped in schema)
   console.log("   Creating report card template...");
-  const { data: template } = await supabase
+  const { data: template, error: templateError } = await supabase
     .from("report_card_templates")
     .insert({
       academic_year_id: academicYear.id,
@@ -457,7 +506,11 @@ async function seed() {
     .select()
     .single();
   
-  const templateId = template!.id;
+  if (templateError) {
+    throw new Error(`Failed to create template: ${templateError.message}`);
+  }
+  
+  const templateId = template.id;
   console.log(`   ✓ Created template: ${templateId}`);
   
   // Link template to grade levels 1-5
@@ -468,7 +521,14 @@ async function seed() {
       grade_level_id: gl.id,
     }));
   
-  await supabase.from("template_grade_levels").insert(templateGradeLevels);
+  const { error: templateGradeLevelsError } = await supabase
+    .from("template_grade_levels")
+    .insert(templateGradeLevels);
+  
+  if (templateGradeLevelsError) {
+    throw new Error(`Failed to link template to grade levels: ${templateGradeLevelsError.message}`);
+  }
+  
   console.log(`   ✓ Linked template to grades 1-5`);
   
   // Create template sections and items
@@ -478,47 +538,47 @@ async function seed() {
       titleEn: "Language Arts",
       titleEs: "Artes del Lenguaje",
       items: [
-        { titleEn: "Reading comprehension", titleEs: "Comprensión de lectura", type: "mark" },
-        { titleEn: "Writing skills", titleEs: "Habilidades de escritura", type: "mark" },
-        { titleEn: "Speaking and listening", titleEs: "Hablar y escuchar", type: "mark" },
+        { titleEn: "Reading comprehension", titleEs: "Comprensión de lectura", type: "mark" as const },
+        { titleEn: "Writing skills", titleEs: "Habilidades de escritura", type: "mark" as const },
+        { titleEn: "Speaking and listening", titleEs: "Hablar y escuchar", type: "mark" as const },
       ],
     },
     {
       titleEn: "Mathematics",
       titleEs: "Matemáticas",
       items: [
-        { titleEn: "Number operations", titleEs: "Operaciones numéricas", type: "mark" },
-        { titleEn: "Problem solving", titleEs: "Resolución de problemas", type: "mark" },
-        { titleEn: "Mathematical reasoning", titleEs: "Razonamiento matemático", type: "mark" },
+        { titleEn: "Number operations", titleEs: "Operaciones numéricas", type: "mark" as const },
+        { titleEn: "Problem solving", titleEs: "Resolución de problemas", type: "mark" as const },
+        { titleEn: "Mathematical reasoning", titleEs: "Razonamiento matemático", type: "mark" as const },
       ],
     },
     {
       titleEn: "Science",
       titleEs: "Ciencias",
       items: [
-        { titleEn: "Scientific inquiry", titleEs: "Indagación científica", type: "mark" },
+        { titleEn: "Scientific inquiry", titleEs: "Indagación científica", type: "mark" as const },
       ],
     },
     {
       titleEn: "Social Studies",
       titleEs: "Estudios Sociales",
       items: [
-        { titleEn: "Community and citizenship", titleEs: "Comunidad y ciudadanía", type: "mark" },
+        { titleEn: "Community and citizenship", titleEs: "Comunidad y ciudadanía", type: "mark" as const },
       ],
     },
     {
       titleEn: "Work Habits",
       titleEs: "Hábitos de Trabajo",
       items: [
-        { titleEn: "Completes work on time", titleEs: "Completa el trabajo a tiempo", type: "mark" },
-        { titleEn: "Works cooperatively", titleEs: "Trabaja cooperativamente", type: "mark" },
+        { titleEn: "Completes work on time", titleEs: "Completa el trabajo a tiempo", type: "mark" as const },
+        { titleEn: "Works cooperatively", titleEs: "Trabaja cooperativamente", type: "mark" as const },
       ],
     },
     {
       titleEn: "Teacher Comments",
       titleEs: "Comentarios del Maestro",
       items: [
-        { titleEn: "General comments", titleEs: "Comentarios generales", type: "comment" },
+        { titleEn: "General comments", titleEs: "Comentarios generales", type: "comment" as const },
       ],
     },
   ];
@@ -527,7 +587,7 @@ async function seed() {
   
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i];
-    const { data: createdSection } = await supabase
+    const { data: createdSection, error: sectionError } = await supabase
       .from("template_sections")
       .insert({
         template_id: templateId,
@@ -539,7 +599,11 @@ async function seed() {
       .select()
       .single();
     
-    const sectionId = createdSection!.id;
+    if (sectionError) {
+      throw new Error(`Failed to create template section "${section.titleEn}": ${sectionError.message}`);
+    }
+    
+    const sectionId = createdSection.id;
     
     const itemsToInsert = section.items.map((item, j) => ({
       section_id: sectionId,
@@ -551,17 +615,23 @@ async function seed() {
       max_chars: item.type === "comment" ? 500 : null,
     }));
     
-    const { data: createdItems } = await supabase
+    const { data: createdItems, error: itemsError } = await supabase
       .from("template_items")
       .insert(itemsToInsert)
       .select();
     
-    itemsBySection[sectionId] = createdItems!;
+    if (itemsError) {
+      throw new Error(`Failed to create template items for section "${section.titleEn}": ${itemsError.message}`);
+    }
+    
+    itemsBySection[sectionId] = createdItems;
   }
   
   console.log(`   ✓ Created ${sections.length} sections with items`);
   
-  // Create staff profiles and auth users
+  // Create staff auth users and profiles
+  // ALL staff get auth users (required for profiles.id FK). Only admin and teacher
+  // (if DEMO_TEACHER_PASSWORD set) get the env password; others get random unguessable passwords.
   console.log("   Creating staff...");
   
   const staff = [
@@ -569,98 +639,77 @@ async function seed() {
       fullName: "Alex Morgan",
       email: "demo@studentreportcards.com",
       role: "site_admin" as const,
-      password: DEMO_ADMIN_PASSWORD,
+      useEnvPassword: true,
+      envPassword: DEMO_ADMIN_PASSWORD,
     },
     {
       fullName: "Jamie Rivera",
       email: "teacher@demo.academy",
       role: "teacher" as const,
-      password: DEMO_TEACHER_PASSWORD || null,
+      useEnvPassword: !!DEMO_TEACHER_PASSWORD,
+      envPassword: DEMO_TEACHER_PASSWORD,
     },
     {
       fullName: "Taylor Chen",
       email: "taylor.chen@demo.academy",
       role: "teacher" as const,
-      password: null,
+      useEnvPassword: false,
+      envPassword: null,
     },
     {
       fullName: "Jordan Kim",
       email: "jordan.kim@demo.academy",
       role: "teacher" as const,
-      password: null,
+      useEnvPassword: false,
+      envPassword: null,
     },
     {
       fullName: "Casey Martinez",
       email: "casey.martinez@demo.academy",
       role: "teacher" as const,
-      password: null,
+      useEnvPassword: false,
+      envPassword: null,
     },
   ];
   
   const createdProfiles: { id: string; email: string; fullName: string }[] = [];
   
   for (const person of staff) {
-    // Create auth user with password if provided
-    let authUserId: string | null = null;
+    // Generate a random unguessable password for non-login staff
+    const password = person.useEnvPassword
+      ? person.envPassword!
+      : `demo-nologin-${crypto.randomUUID()}-${Date.now()}`;
     
-    if (person.password) {
-      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-        email: person.email,
-        password: person.password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: person.fullName,
-        },
-      });
-      
-      if (authError) {
-        console.error(`   ⚠️  Error creating auth user for ${person.email}:`, authError.message);
-      } else {
-        authUserId = authUser.user.id;
-        console.log(`   ✓ Created auth user: ${person.email}`);
-      }
+    // Create auth user (this triggers handle_new_user which creates the profile)
+    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+      email: person.email,
+      password: password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: person.fullName,
+      },
+    });
+    
+    if (authError) {
+      throw new Error(`Failed to create auth user for ${person.email}: ${authError.message}`);
     }
     
-    // Create or update profile
-    let profileId: string;
+    const profileId = authUser.user.id;
+    console.log(`   ✓ Created auth user: ${person.email}${person.useEnvPassword ? " (login enabled)" : " (no login)"}`);
     
-    if (authUserId) {
-      // Use auth user ID as profile ID
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .upsert({
-          id: authUserId,
-          email: person.email,
-          full_name: person.fullName,
-          is_system_admin: false,
-        })
-        .select()
-        .single();
-      
-      if (profileError) {
-        console.error(`   ⚠️  Error creating profile for ${person.email}:`, profileError.message);
-        continue;
-      }
-      
-      profileId = profile!.id;
-    } else {
-      // Create profile without auth user
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .insert({
-          email: person.email,
-          full_name: person.fullName,
-          is_system_admin: false,
-        })
-        .select()
-        .single();
-      
-      if (profileError) {
-        console.error(`   ⚠️  Error creating profile for ${person.email}:`, profileError.message);
-        continue;
-      }
-      
-      profileId = profile!.id;
+    // The handle_new_user trigger already created the profile, but we may need to update it
+    // if the trigger used default values instead of our full_name
+    const { error: updateError } = await supabase
+      .from("profiles")
+      .update({
+        email: person.email,
+        full_name: person.fullName,
+        is_system_admin: false,
+      })
+      .eq("id", profileId);
+    
+    if (updateError) {
+      throw new Error(`Failed to update profile for ${person.email}: ${updateError.message}`);
     }
     
     createdProfiles.push({
@@ -670,11 +719,15 @@ async function seed() {
     });
     
     // Create site membership
-    await supabase.from("site_memberships").insert({
+    const { error: membershipError } = await supabase.from("site_memberships").insert({
       profile_id: profileId,
       site_id: siteId,
       role: person.role,
     });
+    
+    if (membershipError) {
+      throw new Error(`Failed to create site membership for ${person.email}: ${membershipError.message}`);
+    }
   }
   
   console.log(`   ✓ Created ${createdProfiles.length} staff members`);
@@ -684,40 +737,40 @@ async function seed() {
   
   const studentData = [
     // Grade 3 students
-    { firstName: "Emma", lastName: "Johnson", grade: "3", language: "en" },
-    { firstName: "Liam", lastName: "Williams", grade: "3", language: "en" },
-    { firstName: "Sophia", lastName: "Garcia", grade: "3", language: "es" },
-    { firstName: "Noah", lastName: "Rodriguez", grade: "3", language: "es" },
-    { firstName: "Olivia", lastName: "Martinez", grade: "3", language: "en" },
-    { firstName: "Ethan", lastName: "Lopez", grade: "3", language: "es" },
-    { firstName: "Ava", lastName: "Gonzalez", grade: "3", language: "es" },
-    { firstName: "Mason", lastName: "Wilson", grade: "3", language: "en" },
-    { firstName: "Isabella", lastName: "Anderson", grade: "3", language: "en" },
-    { firstName: "Lucas", lastName: "Thomas", grade: "3", language: "en" },
+    { firstName: "Emma", lastName: "Johnson", grade: "3", language: "en" as const },
+    { firstName: "Liam", lastName: "Williams", grade: "3", language: "en" as const },
+    { firstName: "Sophia", lastName: "Garcia", grade: "3", language: "es" as const },
+    { firstName: "Noah", lastName: "Rodriguez", grade: "3", language: "es" as const },
+    { firstName: "Olivia", lastName: "Martinez", grade: "3", language: "en" as const },
+    { firstName: "Ethan", lastName: "Lopez", grade: "3", language: "es" as const },
+    { firstName: "Ava", lastName: "Gonzalez", grade: "3", language: "es" as const },
+    { firstName: "Mason", lastName: "Wilson", grade: "3", language: "en" as const },
+    { firstName: "Isabella", lastName: "Anderson", grade: "3", language: "en" as const },
+    { firstName: "Lucas", lastName: "Thomas", grade: "3", language: "en" as const },
     
     // Grade 4 students
-    { firstName: "Mia", lastName: "Taylor", grade: "4", language: "en" },
-    { firstName: "Aiden", lastName: "Moore", grade: "4", language: "en" },
-    { firstName: "Charlotte", lastName: "Jackson", grade: "4", language: "en" },
-    { firstName: "James", lastName: "Martin", grade: "4", language: "es" },
-    { firstName: "Amelia", lastName: "Lee", grade: "4", language: "en" },
-    { firstName: "Benjamin", lastName: "Perez", grade: "4", language: "es" },
-    { firstName: "Harper", lastName: "Thompson", grade: "4", language: "en" },
-    { firstName: "Elijah", lastName: "White", grade: "4", language: "en" },
-    { firstName: "Evelyn", lastName: "Harris", grade: "4", language: "en" },
-    { firstName: "Alexander", lastName: "Sanchez", grade: "4", language: "es" },
+    { firstName: "Mia", lastName: "Taylor", grade: "4", language: "en" as const },
+    { firstName: "Aiden", lastName: "Moore", grade: "4", language: "en" as const },
+    { firstName: "Charlotte", lastName: "Jackson", grade: "4", language: "en" as const },
+    { firstName: "James", lastName: "Martin", grade: "4", language: "es" as const },
+    { firstName: "Amelia", lastName: "Lee", grade: "4", language: "en" as const },
+    { firstName: "Benjamin", lastName: "Perez", grade: "4", language: "es" as const },
+    { firstName: "Harper", lastName: "Thompson", grade: "4", language: "en" as const },
+    { firstName: "Elijah", lastName: "White", grade: "4", language: "en" as const },
+    { firstName: "Evelyn", lastName: "Harris", grade: "4", language: "en" as const },
+    { firstName: "Alexander", lastName: "Sanchez", grade: "4", language: "es" as const },
     
     // Grade 5 students
-    { firstName: "Abigail", lastName: "Clark", grade: "5", language: "en" },
-    { firstName: "Michael", lastName: "Ramirez", grade: "5", language: "es" },
-    { firstName: "Emily", lastName: "Lewis", grade: "5", language: "en" },
-    { firstName: "Daniel", lastName: "Robinson", grade: "5", language: "en" },
-    { firstName: "Elizabeth", lastName: "Walker", grade: "5", language: "en" },
-    { firstName: "Henry", lastName: "Young", grade: "5", language: "en" },
-    { firstName: "Sofia", lastName: "Allen", grade: "5", language: "es" },
-    { firstName: "Matthew", lastName: "King", grade: "5", language: "en" },
-    { firstName: "Avery", lastName: "Wright", grade: "5", language: "en" },
-    { firstName: "Jackson", lastName: "Scott", grade: "5", language: "en" },
+    { firstName: "Abigail", lastName: "Clark", grade: "5", language: "en" as const },
+    { firstName: "Michael", lastName: "Ramirez", grade: "5", language: "es" as const },
+    { firstName: "Emily", lastName: "Lewis", grade: "5", language: "en" as const },
+    { firstName: "Daniel", lastName: "Robinson", grade: "5", language: "en" as const },
+    { firstName: "Elizabeth", lastName: "Walker", grade: "5", language: "en" as const },
+    { firstName: "Henry", lastName: "Young", grade: "5", language: "en" as const },
+    { firstName: "Sofia", lastName: "Allen", grade: "5", language: "es" as const },
+    { firstName: "Matthew", lastName: "King", grade: "5", language: "en" as const },
+    { firstName: "Avery", lastName: "Wright", grade: "5", language: "en" as const },
+    { firstName: "Jackson", lastName: "Scott", grade: "5", language: "en" as const },
   ];
   
   const gradeLevelMap = new Map(gradeLevels.map(gl => [gl.code, gl.id]));
@@ -732,12 +785,16 @@ async function seed() {
     home_language: student.language,
   }));
   
-  const { data: students } = await supabase
+  const { data: students, error: studentsError } = await supabase
     .from("students")
     .insert(studentsToInsert)
     .select();
   
-  console.log(`   ✓ Created ${students!.length} students`);
+  if (studentsError) {
+    throw new Error(`Failed to create students: ${studentsError.message}`);
+  }
+  
+  console.log(`   ✓ Created ${students.length} students`);
   
   // Create courses
   console.log("   Creating courses...");
@@ -754,7 +811,7 @@ async function seed() {
   const createdCourses: { id: string; name: string; gradeCode: string; teacherProfileId: string }[] = [];
   
   for (const course of courses) {
-    const { data: createdCourse } = await supabase
+    const { data: createdCourse, error: courseError } = await supabase
       .from("courses")
       .insert({
         site_id: siteId,
@@ -766,11 +823,15 @@ async function seed() {
       .select()
       .single();
     
-    const courseId = createdCourse!.id;
+    if (courseError) {
+      throw new Error(`Failed to create course "${course.name}": ${courseError.message}`);
+    }
+    
+    const courseId = createdCourse.id;
     const teacherProfileId = createdProfiles[course.teacherIndex].id;
     
     // Assign teacher to course
-    await supabase.from("course_teachers").insert({
+    const { error: teacherError } = await supabase.from("course_teachers").insert({
       course_id: courseId,
       profile_id: teacherProfileId,
       can_grade: true,
@@ -778,6 +839,10 @@ async function seed() {
       grades_homeroom: true,
       section_ids: [],
     });
+    
+    if (teacherError) {
+      throw new Error(`Failed to assign teacher to course "${course.name}": ${teacherError.message}`);
+    }
     
     createdCourses.push({
       id: courseId,
@@ -796,7 +861,7 @@ async function seed() {
   
   for (const course of createdCourses) {
     // Get students for this grade
-    const gradeStudents = students!.filter(
+    const gradeStudents = students.filter(
       s => s.grade_level_id === gradeLevelMap.get(course.gradeCode)!
     );
     
@@ -814,7 +879,10 @@ async function seed() {
     }));
     
     if (enrollments.length > 0) {
-      await supabase.from("enrollments").insert(enrollments);
+      const { error: enrollmentsError } = await supabase.from("enrollments").insert(enrollments);
+      if (enrollmentsError) {
+        throw new Error(`Failed to create enrollments for course "${course.name}": ${enrollmentsError.message}`);
+      }
       enrollmentCount += enrollments.length;
     }
   }
@@ -824,7 +892,7 @@ async function seed() {
   // Create grades for the first term
   console.log("   Creating sample grades for Trimester 1...");
   
-  const term1 = terms![0];
+  const term1 = terms[0];
   const allItems = Object.values(itemsBySection).flat();
   const markItems = allItems.filter(item => item.item_type === "mark");
   const commentItems = allItems.filter(item => item.item_type === "comment");
@@ -832,10 +900,14 @@ async function seed() {
   let gradeCount = 0;
   
   // Get all enrollments
-  const { data: allEnrollments } = await supabase
+  const { data: allEnrollments, error: enrollmentsQueryError } = await supabase
     .from("enrollments")
     .select("*")
     .in("course_id", createdCourses.map(c => c.id));
+  
+  if (enrollmentsQueryError) {
+    throw new Error(`Failed to fetch enrollments: ${enrollmentsQueryError.message}`);
+  }
   
   // Sample comments for variety
   const comments = [
@@ -849,7 +921,7 @@ async function seed() {
     "Continue to build confidence in this area.",
   ];
   
-  for (const enrollment of allEnrollments!) {
+  for (const enrollment of allEnrollments) {
     // Create grades for mark items
     for (const item of markItems) {
       // Randomly assign marks with a realistic distribution
@@ -862,14 +934,21 @@ async function seed() {
       else markCode = "U";
       
       const mark = marks.find(m => m.code === markCode);
+      if (!mark) {
+        throw new Error(`Mark with code ${markCode} not found`);
+      }
       
-      await supabase.from("grades").insert({
+      const { error: gradeError } = await supabase.from("grades").insert({
         enrollment_id: enrollment.id,
         term_id: term1.id,
         template_item_id: item.id,
-        mark_id: mark!.id,
+        mark_id: mark.id,
         comment: "",
       });
+      
+      if (gradeError) {
+        throw new Error(`Failed to create grade for enrollment ${enrollment.id}: ${gradeError.message}`);
+      }
       
       gradeCount++;
     }
@@ -878,13 +957,17 @@ async function seed() {
     for (const item of commentItems) {
       const randomComment = comments[Math.floor(Math.random() * comments.length)];
       
-      await supabase.from("grades").insert({
+      const { error: commentError } = await supabase.from("grades").insert({
         enrollment_id: enrollment.id,
         term_id: term1.id,
         template_item_id: item.id,
         mark_id: null,
         comment: randomComment,
       });
+      
+      if (commentError) {
+        throw new Error(`Failed to create comment for enrollment ${enrollment.id}: ${commentError.message}`);
+      }
       
       gradeCount++;
     }
@@ -905,13 +988,17 @@ async function seed() {
     console.log(`  Password: ${DEMO_TEACHER_PASSWORD}`);
   }
   
+  console.log("\nNote: All 5 staff members have auth accounts, but only the accounts");
+  console.log("above have login credentials. Other staff use random unguessable passwords.");
+  
   console.log("\n📊 Summary:");
   console.log(`  Site:      ${DEMO_SITE_NAME} (${DEMO_SITE_CODE})`);
   console.log(`  Year:      2026–27 with 3 terms`);
   console.log(`  Staff:     ${createdProfiles.length} (1 admin, ${createdProfiles.length - 1} teachers)`);
-  console.log(`  Students:  ${students!.length} (across grades 3-5)`);
+  console.log(`  Students:  ${students.length} (across grades 3-5)`);
   console.log(`  Courses:   ${createdCourses.length}`);
   console.log(`  Grades:    ${gradeCount} (Trimester 1 only)`);
+  console.log(`  Template:  District-level (deleted on reset)`);
   console.log("");
 }
 
@@ -923,11 +1010,15 @@ async function main() {
     await seed();
   } else {
     // Check if demo site already exists
-    const { data: existingSite } = await supabase
+    const { data: existingSite, error: checkError } = await supabase
       .from("sites")
       .select("id")
       .eq("code", DEMO_SITE_CODE)
       .maybeSingle();
+    
+    if (checkError) {
+      throw new Error(`Failed to check for existing demo site: ${checkError.message}`);
+    }
     
     if (existingSite) {
       console.log("\n⚠️  Demo Academy already exists!");
