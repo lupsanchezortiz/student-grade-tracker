@@ -14,9 +14,21 @@ const serif = Source_Serif_4({
 });
 
 export const metadata: Metadata = {
-  title: "Northside Unified · Student information",
+  title: {
+    default: "Student Report Cards - K-12 Report Card & Grade Tracking",
+    template: "%s | Student Report Cards",
+  },
   description:
-    "District student information system for calendars, bilingual report cards, and site gradebooks.",
+    "Secure report card and grade-tracking tool for K-12 schools and academies. Import students, staff, courses, and grades from CSV. Generate printable report cards with customizable templates.",
+  metadataBase: new URL("https://studentreportcards.com"),
+  openGraph: {
+    title: "Student Report Cards - K-12 Report Card & Grade Tracking",
+    description:
+      "Secure report card and grade-tracking tool for K-12 schools and academies.",
+    url: "https://studentreportcards.com",
+    siteName: "Student Report Cards",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

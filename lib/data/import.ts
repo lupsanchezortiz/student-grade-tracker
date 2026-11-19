@@ -1266,7 +1266,7 @@ export async function importGradesCsv(csv: string, lockedSiteId?: string) {
         continue;
       }
       
-      let templateItem = templateItems.find((item: any) => {
+      const templateItem = templateItems.find((item: any) => {
         if (printCode && item.print_code) {
           return printCodesMatch(item.print_code, printCode);
         }
@@ -1468,7 +1468,7 @@ export async function importGradesCsv(csv: string, lockedSiteId?: string) {
         return;
       }
       
-      let templateItem = templateItems.find((item) => {
+      const templateItem = templateItems.find((item) => {
         if (printCode && item.printCode) {
           return printCodesMatch(item.printCode, printCode);
         }
