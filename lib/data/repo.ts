@@ -47,6 +47,7 @@ import type {
   AttendanceRecord,
   Course,
   Grade,
+  GradeLevel,
   GradeScale,
   GradeScaleMark,
   ItemType,
