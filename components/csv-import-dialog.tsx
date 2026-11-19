@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { importCsvAction } from "@/lib/actions/mutations";
-import { parseCsv } from "@/lib/csv/parse";
+import { parseCsv, parseExcel } from "@/lib/csv/parse";
 import { SAMPLES, type ImportKind } from "@/lib/csv/samples";
 import type { ImportResult } from "@/lib/csv/parse";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,7 @@ export function CsvImportDialog({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
-  const preview = text ? parseCsv(text) : { headers: [], rows: [] };
+  const [preview, setPreview] = useState<{ headers: string[]; rows: Record<string, string>[] }>({ headers: [], rows: [] });
 
   function downloadSample() {
     const blob = new Blob([SAMPLES[kind]], { type: "text/csv;charset=utf-8" });
@@ -56,7 +56,36 @@ export function CsvImportDialog({
   async function onFile(file: File | undefined) {
     if (!file) return;
     setResult(null);
-    setText(await file.text());
+    
+    const isExcel = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
+    
+    if (isExcel) {
+      try {
+        const buffer = await file.arrayBuffer();
+        const parsed = await parseExcel(buffer);
+        setPreview(parsed);
+        
+        const csvText = [
+          parsed.headers.join(","),
+          ...parsed.rows.map((row) =>
+            parsed.headers.map((h) => {
+              const val = row[h] || "";
+              return val.includes(",") || val.includes('"') || val.includes("\n")
+                ? `"${val.replace(/"/g, '""')}"`
+                : val;
+            }).join(",")
+          ),
+        ].join("\n");
+        setText(csvText);
+      } catch (error) {
+        toast.error("Failed to parse Excel file. Please check the file format.");
+        console.error(error);
+      }
+    } else {
+      const csvText = await file.text();
+      setText(csvText);
+      setPreview(parseCsv(csvText));
+    }
   }
 
   async function commit() {
@@ -106,7 +135,7 @@ export function CsvImportDialog({
           <DialogTitle>{TITLES[kind]}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Upload a CSV, review the rows, then import. Matching records are updated instead of duplicated.
+          Upload a CSV or Excel file (.xlsx, .xls), review the rows, then import. Matching records are updated instead of duplicated.
         </p>
         {kind === "template_items" ? (
           <p className="text-sm text-muted-foreground">
@@ -163,7 +192,7 @@ export function CsvImportDialog({
             Choose file
             <input
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               className="sr-only"
               onChange={(e) => void onFile(e.target.files?.[0])}
             />

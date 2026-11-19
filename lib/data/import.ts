@@ -106,10 +106,33 @@ function localeOf(raw: string): Locale {
 
 export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
-  const { rows } = parseCsv(csv);
+  const { headers, rows } = parseCsv(csv);
+  
+  const result = emptyResult();
+  
+  const requiredColumns = [
+    { keys: ["site_code", "site"], label: "site_code" },
+    { keys: ["student_number", "id"], label: "student_number" },
+    { keys: ["first_name", "first"], label: "first_name" },
+    { keys: ["last_name", "last"], label: "last_name" },
+    { keys: ["grade", "grade_level"], label: "grade" },
+  ];
+  
+  const missingColumns: string[] = [];
+  for (const col of requiredColumns) {
+    const hasColumn = col.keys.some((key) => headers.includes(key.toLowerCase()));
+    if (!hasColumn) missingColumns.push(col.label);
+  }
+  
+  if (missingColumns.length > 0) {
+    result.errors.push({
+      row: 1,
+      message: `Your file is missing these columns: ${missingColumns.join(", ")}. Found columns: ${headers.join(", ")}.`,
+    });
+    return result;
+  }
   
   if (isSupabaseConfigured()) {
-    const result = emptyResult();
     const sites = await getSites();
     const gradeLevels = await getGradeLevels();
     const supabase = await createServerSupabase();
@@ -120,7 +143,7 @@ export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
       const siteCode = csvCell(row, "site_code", "site");
       const site = findSite(sites, siteCode);
       if (!site) {
-        result.errors.push({ row: rowNo, message: `Unknown school code "${siteCode}".` });
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCode}" is not a valid school code.` });
         result.skipped++;
         continue;
       }
@@ -142,11 +165,30 @@ export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
       const number = csvCell(row, "student_number", "id");
       const first = csvCell(row, "first_name", "first");
       const last = csvCell(row, "last_name", "last");
-      const grade = findGrade(gradeLevels, csvCell(row, "grade", "grade_level"));
-      if (!number || !first || !last || !grade) {
+      const gradeRaw = csvCell(row, "grade", "grade_level");
+      
+      if (!number) {
+        result.errors.push({ row: rowNo, message: "Missing student_number." });
+        result.skipped++;
+        continue;
+      }
+      if (!first) {
+        result.errors.push({ row: rowNo, message: "Missing first_name." });
+        result.skipped++;
+        continue;
+      }
+      if (!last) {
+        result.errors.push({ row: rowNo, message: "Missing last_name." });
+        result.skipped++;
+        continue;
+      }
+      
+      const grade = findGrade(gradeLevels, gradeRaw);
+      if (!grade) {
+        const validGrades = gradeLevels.map((g) => g.code).join(", ");
         result.errors.push({
           row: rowNo,
-          message: "Need student_number, first_name, last_name, and a valid grade.",
+          message: `grade: "${gradeRaw}" isn't a grade level at this school. Valid: ${validGrades}.`,
         });
         result.skipped++;
         continue;
@@ -188,13 +230,12 @@ export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
   }
   
   return mutateState((state) => {
-    const result = emptyResult();
     rows.forEach((row, index) => {
       const rowNo = index + 2;
       const siteCode = csvCell(row, "site_code", "site");
       const site = findSite(state.sites, siteCode);
       if (!site) {
-        result.errors.push({ row: rowNo, message: `Unknown school code "${siteCode}".` });
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCode}" is not a valid school code.` });
         result.skipped++;
         return;
       }
@@ -220,11 +261,30 @@ export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
       const number = csvCell(row, "student_number", "id");
       const first = csvCell(row, "first_name", "first");
       const last = csvCell(row, "last_name", "last");
-      const grade = findGrade(state.gradeLevels, csvCell(row, "grade", "grade_level"));
-      if (!number || !first || !last || !grade) {
+      const gradeRaw = csvCell(row, "grade", "grade_level");
+      
+      if (!number) {
+        result.errors.push({ row: rowNo, message: "Missing student_number." });
+        result.skipped++;
+        return;
+      }
+      if (!first) {
+        result.errors.push({ row: rowNo, message: "Missing first_name." });
+        result.skipped++;
+        return;
+      }
+      if (!last) {
+        result.errors.push({ row: rowNo, message: "Missing last_name." });
+        result.skipped++;
+        return;
+      }
+      
+      const grade = findGrade(state.gradeLevels, gradeRaw);
+      if (!grade) {
+        const validGrades = state.gradeLevels.map((g) => g.code).join(", ");
         result.errors.push({
           row: rowNo,
-          message: "Need student_number, first_name, last_name, and a valid grade.",
+          message: `grade: "${gradeRaw}" isn't a grade level at this school. Valid: ${validGrades}.`,
         });
         result.skipped++;
         return;
@@ -256,21 +316,50 @@ export async function importStudentsCsv(csv: string, lockedSiteId?: string) {
 
 export async function importStaffCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
-  const { rows } = parseCsv(csv);
+  const { headers, rows } = parseCsv(csv);
+  
+  const result = emptyResult();
+  result.authInvited = 0;
+  result.authLinked = 0;
+  result.authSkipped = 0;
+  
+  const requiredColumns = [
+    { keys: ["site_code", "site"], label: "site_code" },
+    { keys: ["full_name", "name"], label: "full_name" },
+    { keys: ["email"], label: "email" },
+  ];
+  
+  const missingColumns: string[] = [];
+  for (const col of requiredColumns) {
+    const hasColumn = col.keys.some((key) => headers.includes(key.toLowerCase()));
+    if (!hasColumn) missingColumns.push(col.label);
+  }
+  
+  if (missingColumns.length > 0) {
+    result.errors.push({
+      row: 1,
+      message: `Your file is missing these columns: ${missingColumns.join(", ")}. Found columns: ${headers.join(", ")}.`,
+    });
+    return result;
+  }
   
   if (isSupabaseConfigured()) {
-    const result = emptyResult();
-    result.authInvited = 0;
-    result.authLinked = 0;
-    result.authSkipped = 0;
     const sites = await getSites();
     
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
       const rowNo = index + 2;
-      const site = findSite(sites, csvCell(row, "site_code", "site"));
+      const siteCodeRaw = csvCell(row, "site_code", "site");
+      
+      if (!siteCodeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing site_code." });
+        result.skipped++;
+        continue;
+      }
+      
+      const site = findSite(sites, siteCodeRaw);
       if (!site) {
-        result.errors.push({ row: rowNo, message: "Unknown school code." });
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCodeRaw}" is not a valid school code.` });
         result.skipped++;
         continue;
       }
@@ -293,8 +382,14 @@ export async function importStaffCsv(csv: string, lockedSiteId?: string) {
       const fullName = csvCell(row, "full_name", "name");
       const roleRaw = csvCell(row, "role").toLowerCase();
       const role: SiteRole = roleRaw.includes("admin") ? "site_admin" : "teacher";
-      if (!email || !fullName) {
-        result.errors.push({ row: rowNo, message: "Need full_name and email." });
+      
+      if (!fullName) {
+        result.errors.push({ row: rowNo, message: "Missing full_name." });
+        result.skipped++;
+        continue;
+      }
+      if (!email) {
+        result.errors.push({ row: rowNo, message: "Missing email." });
         result.skipped++;
         continue;
       }
@@ -330,12 +425,19 @@ export async function importStaffCsv(csv: string, lockedSiteId?: string) {
   }
   
   return mutateState((state) => {
-    const result = emptyResult();
     rows.forEach((row, index) => {
       const rowNo = index + 2;
-      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
+      const siteCodeRaw = csvCell(row, "site_code", "site");
+      
+      if (!siteCodeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing site_code." });
+        result.skipped++;
+        return;
+      }
+      
+      const site = findSite(state.sites, siteCodeRaw);
       if (!site) {
-        result.errors.push({ row: rowNo, message: "Unknown school code." });
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCodeRaw}" is not a valid school code.` });
         result.skipped++;
         return;
       }
@@ -358,11 +460,18 @@ export async function importStaffCsv(csv: string, lockedSiteId?: string) {
       const fullName = csvCell(row, "full_name", "name");
       const roleRaw = csvCell(row, "role").toLowerCase();
       const role: SiteRole = roleRaw.includes("admin") ? "site_admin" : "teacher";
-      if (!email || !fullName) {
-        result.errors.push({ row: rowNo, message: "Need full_name and email." });
+      
+      if (!fullName) {
+        result.errors.push({ row: rowNo, message: "Missing full_name." });
         result.skipped++;
         return;
       }
+      if (!email) {
+        result.errors.push({ row: rowNo, message: "Missing email." });
+        result.skipped++;
+        return;
+      }
+      
       let profile = state.profiles.find((p) => p.email.toLowerCase() === email);
       if (!profile) {
         assertDemoModeAllowed();
@@ -401,10 +510,32 @@ export async function importStaffCsv(csv: string, lockedSiteId?: string) {
 
 export async function importCoursesCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
-  const { rows } = parseCsv(csv);
+  const { headers, rows } = parseCsv(csv);
+  
+  const result = emptyResult();
+  
+  const requiredColumns = [
+    { keys: ["site_code", "site"], label: "site_code" },
+    { keys: ["year", "academic_year"], label: "year" },
+    { keys: ["grade", "grade_level"], label: "grade" },
+    { keys: ["name", "course"], label: "name" },
+  ];
+  
+  const missingColumns: string[] = [];
+  for (const col of requiredColumns) {
+    const hasColumn = col.keys.some((key) => headers.includes(key.toLowerCase()));
+    if (!hasColumn) missingColumns.push(col.label);
+  }
+  
+  if (missingColumns.length > 0) {
+    result.errors.push({
+      row: 1,
+      message: `Your file is missing these columns: ${missingColumns.join(", ")}. Found columns: ${headers.join(", ")}.`,
+    });
+    return result;
+  }
   
   if (isSupabaseConfigured()) {
-    const result = emptyResult();
     const sites = await getSites();
     const years = await getYears();
     const gradeLevels = await getGradeLevels();
@@ -413,15 +544,50 @@ export async function importCoursesCsv(csv: string, lockedSiteId?: string) {
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
       const rowNo = index + 2;
-      const site = findSite(sites, csvCell(row, "site_code", "site"));
-      const year = findYear(years, csvCell(row, "year", "academic_year"));
-      const grade = findGrade(gradeLevels, csvCell(row, "grade", "grade_level"));
+      const siteCodeRaw = csvCell(row, "site_code", "site");
+      const yearRaw = csvCell(row, "year", "academic_year");
+      const gradeRaw = csvCell(row, "grade", "grade_level");
       const name = csvCell(row, "name", "course");
-      if (!site || !year || !grade || !name) {
-        result.errors.push({
-          row: rowNo,
-          message: "Need site_code, year, grade, and name.",
-        });
+      
+      if (!siteCodeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing site_code." });
+        result.skipped++;
+        continue;
+      }
+      if (!yearRaw) {
+        result.errors.push({ row: rowNo, message: "Missing year." });
+        result.skipped++;
+        continue;
+      }
+      if (!gradeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing grade." });
+        result.skipped++;
+        continue;
+      }
+      if (!name) {
+        result.errors.push({ row: rowNo, message: "Missing name (course name)." });
+        result.skipped++;
+        continue;
+      }
+      
+      const site = findSite(sites, siteCodeRaw);
+      if (!site) {
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCodeRaw}" is not a valid school code.` });
+        result.skipped++;
+        continue;
+      }
+      
+      const year = findYear(years, yearRaw);
+      if (!year) {
+        result.errors.push({ row: rowNo, message: `year: "${yearRaw}" is not a valid academic year.` });
+        result.skipped++;
+        continue;
+      }
+      
+      const grade = findGrade(gradeLevels, gradeRaw);
+      if (!grade) {
+        const validGrades = gradeLevels.map((g) => g.code).join(", ");
+        result.errors.push({ row: rowNo, message: `grade: "${gradeRaw}" isn't a grade level. Valid: ${validGrades}.` });
         result.skipped++;
         continue;
       }
@@ -525,18 +691,52 @@ export async function importCoursesCsv(csv: string, lockedSiteId?: string) {
   }
   
   return mutateState((state) => {
-    const result = emptyResult();
     rows.forEach((row, index) => {
       const rowNo = index + 2;
-      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
-      const year = findYear(state.years, csvCell(row, "year", "academic_year"));
-      const grade = findGrade(state.gradeLevels, csvCell(row, "grade", "grade_level"));
+      const siteCodeRaw = csvCell(row, "site_code", "site");
+      const yearRaw = csvCell(row, "year", "academic_year");
+      const gradeRaw = csvCell(row, "grade", "grade_level");
       const name = csvCell(row, "name", "course");
-      if (!site || !year || !grade || !name) {
-        result.errors.push({
-          row: rowNo,
-          message: "Need site_code, year, grade, and name.",
-        });
+      
+      if (!siteCodeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing site_code." });
+        result.skipped++;
+        return;
+      }
+      if (!yearRaw) {
+        result.errors.push({ row: rowNo, message: "Missing year." });
+        result.skipped++;
+        return;
+      }
+      if (!gradeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing grade." });
+        result.skipped++;
+        return;
+      }
+      if (!name) {
+        result.errors.push({ row: rowNo, message: "Missing name (course name)." });
+        result.skipped++;
+        return;
+      }
+      
+      const site = findSite(state.sites, siteCodeRaw);
+      if (!site) {
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCodeRaw}" is not a valid school code.` });
+        result.skipped++;
+        return;
+      }
+      
+      const year = findYear(state.years, yearRaw);
+      if (!year) {
+        result.errors.push({ row: rowNo, message: `year: "${yearRaw}" is not a valid academic year.` });
+        result.skipped++;
+        return;
+      }
+      
+      const grade = findGrade(state.gradeLevels, gradeRaw);
+      if (!grade) {
+        const validGrades = state.gradeLevels.map((g) => g.code).join(", ");
+        result.errors.push({ row: rowNo, message: `grade: "${gradeRaw}" isn't a grade level. Valid: ${validGrades}.` });
         result.skipped++;
         return;
       }
@@ -821,10 +1021,33 @@ function parseCount(raw: string, rowNo: number, field: string, result: ImportRes
 
 export async function importEnrollmentsCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
-  const { rows } = parseCsv(csv);
+  const { headers, rows } = parseCsv(csv);
+  
+  const result = emptyResult();
+  
+  const requiredColumns = [
+    { keys: ["site_code", "site"], label: "site_code" },
+    { keys: ["year", "academic_year"], label: "year" },
+    { keys: ["grade", "grade_level"], label: "grade" },
+    { keys: ["course_name", "name", "course"], label: "course_name" },
+    { keys: ["student_number", "student_id", "id"], label: "student_number" },
+  ];
+  
+  const missingColumns: string[] = [];
+  for (const col of requiredColumns) {
+    const hasColumn = col.keys.some((key) => headers.includes(key.toLowerCase()));
+    if (!hasColumn) missingColumns.push(col.label);
+  }
+  
+  if (missingColumns.length > 0) {
+    result.errors.push({
+      row: 1,
+      message: `Your file is missing these columns: ${missingColumns.join(", ")}. Found columns: ${headers.join(", ")}.`,
+    });
+    return result;
+  }
   
   if (isSupabaseConfigured()) {
-    const result = emptyResult();
     const sites = await getSites();
     const years = await getYears();
     const gradeLevels = await getGradeLevels();
@@ -835,17 +1058,56 @@ export async function importEnrollmentsCsv(csv: string, lockedSiteId?: string) {
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
       const rowNo = index + 2;
-      const site = findSite(sites, csvCell(row, "site_code", "site"));
-      const year = findYear(years, csvCell(row, "year", "academic_year"));
-      const grade = findGrade(gradeLevels, csvCell(row, "grade", "grade_level"));
+      const siteCodeRaw = csvCell(row, "site_code", "site");
+      const yearRaw = csvCell(row, "year", "academic_year");
+      const gradeRaw = csvCell(row, "grade", "grade_level");
       const courseName = csvCell(row, "course_name", "name", "course");
       const studentNumber = csvCell(row, "student_number", "student_id", "id");
       
-      if (!site || !year || !grade || !courseName || !studentNumber) {
-        result.errors.push({
-          row: rowNo,
-          message: "Need site_code, year, grade, course_name, and student_number.",
-        });
+      if (!siteCodeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing site_code." });
+        result.skipped++;
+        continue;
+      }
+      if (!yearRaw) {
+        result.errors.push({ row: rowNo, message: "Missing year." });
+        result.skipped++;
+        continue;
+      }
+      if (!gradeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing grade." });
+        result.skipped++;
+        continue;
+      }
+      if (!courseName) {
+        result.errors.push({ row: rowNo, message: "Missing course_name." });
+        result.skipped++;
+        continue;
+      }
+      if (!studentNumber) {
+        result.errors.push({ row: rowNo, message: "Missing student_number." });
+        result.skipped++;
+        continue;
+      }
+      
+      const site = findSite(sites, siteCodeRaw);
+      if (!site) {
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCodeRaw}" is not a valid school code.` });
+        result.skipped++;
+        continue;
+      }
+      
+      const year = findYear(years, yearRaw);
+      if (!year) {
+        result.errors.push({ row: rowNo, message: `year: "${yearRaw}" is not a valid academic year.` });
+        result.skipped++;
+        continue;
+      }
+      
+      const grade = findGrade(gradeLevels, gradeRaw);
+      if (!grade) {
+        const validGrades = gradeLevels.map((g) => g.code).join(", ");
+        result.errors.push({ row: rowNo, message: `grade: "${gradeRaw}" isn't a grade level. Valid: ${validGrades}.` });
         result.skipped++;
         continue;
       }
@@ -932,20 +1194,58 @@ export async function importEnrollmentsCsv(csv: string, lockedSiteId?: string) {
   }
   
   return mutateState((state) => {
-    const result = emptyResult();
     rows.forEach((row, index) => {
       const rowNo = index + 2;
-      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
-      const year = findYear(state.years, csvCell(row, "year", "academic_year"));
-      const grade = findGrade(state.gradeLevels, csvCell(row, "grade", "grade_level"));
+      const siteCodeRaw = csvCell(row, "site_code", "site");
+      const yearRaw = csvCell(row, "year", "academic_year");
+      const gradeRaw = csvCell(row, "grade", "grade_level");
       const courseName = csvCell(row, "course_name", "name", "course");
       const studentNumber = csvCell(row, "student_number", "student_id", "id");
       
-      if (!site || !year || !grade || !courseName || !studentNumber) {
-        result.errors.push({
-          row: rowNo,
-          message: "Need site_code, year, grade, course_name, and student_number.",
-        });
+      if (!siteCodeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing site_code." });
+        result.skipped++;
+        return;
+      }
+      if (!yearRaw) {
+        result.errors.push({ row: rowNo, message: "Missing year." });
+        result.skipped++;
+        return;
+      }
+      if (!gradeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing grade." });
+        result.skipped++;
+        return;
+      }
+      if (!courseName) {
+        result.errors.push({ row: rowNo, message: "Missing course_name." });
+        result.skipped++;
+        return;
+      }
+      if (!studentNumber) {
+        result.errors.push({ row: rowNo, message: "Missing student_number." });
+        result.skipped++;
+        return;
+      }
+      
+      const site = findSite(state.sites, siteCodeRaw);
+      if (!site) {
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCodeRaw}" is not a valid school code.` });
+        result.skipped++;
+        return;
+      }
+      
+      const year = findYear(state.years, yearRaw);
+      if (!year) {
+        result.errors.push({ row: rowNo, message: `year: "${yearRaw}" is not a valid academic year.` });
+        result.skipped++;
+        return;
+      }
+      
+      const grade = findGrade(state.gradeLevels, gradeRaw);
+      if (!grade) {
+        const validGrades = state.gradeLevels.map((g) => g.code).join(", ");
+        result.errors.push({ row: rowNo, message: `grade: "${gradeRaw}" isn't a grade level. Valid: ${validGrades}.` });
         result.skipped++;
         return;
       }
@@ -1015,15 +1315,46 @@ export async function importEnrollmentsCsv(csv: string, lockedSiteId?: string) {
 
 export async function importAttendanceCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
-  const { rows } = parseCsv(csv);
+  const { headers, rows } = parseCsv(csv);
+  
+  const result = emptyResult();
+  
+  const requiredColumns = [
+    { keys: ["site_code", "site"], label: "site_code" },
+    { keys: ["student_number", "id"], label: "student_number" },
+    { keys: ["year", "academic_year"], label: "year" },
+    { keys: ["term", "period"], label: "term" },
+  ];
+  
+  const missingColumns: string[] = [];
+  for (const col of requiredColumns) {
+    const hasColumn = col.keys.some((key) => headers.includes(key.toLowerCase()));
+    if (!hasColumn) missingColumns.push(col.label);
+  }
+  
+  if (missingColumns.length > 0) {
+    result.errors.push({
+      row: 1,
+      message: `Your file is missing these columns: ${missingColumns.join(", ")}. Found columns: ${headers.join(", ")}.`,
+    });
+    return result;
+  }
+  
   return mutateState((state) => {
-    const result = emptyResult();
     if (!state.attendance) state.attendance = [];
     rows.forEach((row, index) => {
       const rowNo = index + 2;
-      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
+      const siteCodeRaw = csvCell(row, "site_code", "site");
+      
+      if (!siteCodeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing site_code." });
+        result.skipped++;
+        return;
+      }
+      
+      const site = findSite(state.sites, siteCodeRaw);
       if (!site) {
-        result.errors.push({ row: rowNo, message: "Unknown school code." });
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCodeRaw}" is not a valid school code.` });
         result.skipped++;
         return;
       }
@@ -1117,10 +1448,33 @@ export async function importAttendanceCsv(csv: string, lockedSiteId?: string) {
 
 export async function importGradesCsv(csv: string, lockedSiteId?: string) {
   const user = await requireUser();
-  const { rows } = parseCsv(csv);
+  const { headers, rows } = parseCsv(csv);
+  
+  const result = emptyResult();
+  
+  const requiredColumns = [
+    { keys: ["site_code", "site"], label: "site_code" },
+    { keys: ["year", "academic_year"], label: "year" },
+    { keys: ["course_name", "course"], label: "course_name" },
+    { keys: ["student_number", "student_id", "id"], label: "student_number" },
+    { keys: ["term", "marking_period", "grading_period", "period"], label: "term" },
+  ];
+  
+  const missingColumns: string[] = [];
+  for (const col of requiredColumns) {
+    const hasColumn = col.keys.some((key) => headers.includes(key.toLowerCase()));
+    if (!hasColumn) missingColumns.push(col.label);
+  }
+  
+  if (missingColumns.length > 0) {
+    result.errors.push({
+      row: 1,
+      message: `Your file is missing these columns: ${missingColumns.join(", ")}. Found columns: ${headers.join(", ")}.`,
+    });
+    return result;
+  }
   
   if (isSupabaseConfigured()) {
-    const result = emptyResult();
     const sites = await getSites();
     const years = await getYears();
     const supabase = await createServerSupabase();
@@ -1129,17 +1483,48 @@ export async function importGradesCsv(csv: string, lockedSiteId?: string) {
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
       const rowNo = index + 2;
-      const site = findSite(sites, csvCell(row, "site_code", "site"));
-      const year = findYear(years, csvCell(row, "year", "academic_year"));
+      const siteCodeRaw = csvCell(row, "site_code", "site");
+      const yearRaw = csvCell(row, "year", "academic_year");
       const courseName = csvCell(row, "course_name", "course");
       const studentNumber = csvCell(row, "student_number", "student_id", "id");
       const termRaw = csvCell(row, "term", "marking_period", "grading_period", "period");
       
-      if (!site || !year || !courseName || !studentNumber || !termRaw) {
-        result.errors.push({
-          row: rowNo,
-          message: "Need site_code, year, course_name, student_number, and term.",
-        });
+      if (!siteCodeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing site_code." });
+        result.skipped++;
+        continue;
+      }
+      if (!yearRaw) {
+        result.errors.push({ row: rowNo, message: "Missing year." });
+        result.skipped++;
+        continue;
+      }
+      if (!courseName) {
+        result.errors.push({ row: rowNo, message: "Missing course_name." });
+        result.skipped++;
+        continue;
+      }
+      if (!studentNumber) {
+        result.errors.push({ row: rowNo, message: "Missing student_number." });
+        result.skipped++;
+        continue;
+      }
+      if (!termRaw) {
+        result.errors.push({ row: rowNo, message: "Missing term." });
+        result.skipped++;
+        continue;
+      }
+      
+      const site = findSite(sites, siteCodeRaw);
+      if (!site) {
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCodeRaw}" is not a valid school code.` });
+        result.skipped++;
+        continue;
+      }
+      
+      const year = findYear(years, yearRaw);
+      if (!year) {
+        result.errors.push({ row: rowNo, message: `year: "${yearRaw}" is not a valid academic year.` });
         result.skipped++;
         continue;
       }
@@ -1266,7 +1651,16 @@ export async function importGradesCsv(csv: string, lockedSiteId?: string) {
         continue;
       }
       
-      const templateItem = templateItems.find((item: any) => {
+      type TemplateItemRow = {
+        id: string;
+        print_code: string | null;
+        title_en: string;
+        title_es: string;
+        item_type: string;
+        grade_scale_id: string | null;
+      };
+      
+      const templateItem = templateItems.find((item: TemplateItemRow) => {
         if (printCode && item.print_code) {
           return printCodesMatch(item.print_code, printCode);
         }
@@ -1290,6 +1684,11 @@ export async function importGradesCsv(csv: string, lockedSiteId?: string) {
       const markCode = csvCell(row, "mark_code", "mark", "grade", "score");
       const comment = csvCell(row, "comment");
       
+      type ScaleMarkRow = {
+        id: string;
+        code: string;
+      };
+      
       let markId: string | null = null;
       if (markCode && templateItem.item_type === "mark") {
         const { data: scaleMarks } = await supabase
@@ -1297,14 +1696,17 @@ export async function importGradesCsv(csv: string, lockedSiteId?: string) {
           .select("*")
           .eq("scale_id", templateItem.grade_scale_id || "");
         
-        const mark = (scaleMarks || []).find((m: any) => 
+        const mark = (scaleMarks || []).find((m: ScaleMarkRow) => 
           m.code.toLowerCase() === markCode.toLowerCase()
         );
         
         if (!mark) {
+          const validMarks = (scaleMarks || []).map((m: ScaleMarkRow) => m.code).join(", ");
+          const scale = state.scales.find((s) => s.id === templateItem.grade_scale_id);
+          const scaleName = scale?.name || "this scale";
           result.errors.push({
             row: rowNo,
-            message: `Mark code "${markCode}" not found in the scale for this item.`,
+            message: `mark_code: "${markCode}" isn't on the ${scaleName}. Valid marks: ${validMarks}.`,
           });
           result.skipped++;
           continue;
@@ -1355,22 +1757,52 @@ export async function importGradesCsv(csv: string, lockedSiteId?: string) {
   }
   
   return mutateState((state) => {
-    const result = emptyResult();
     if (!state.grades) state.grades = [];
     
     rows.forEach((row, index) => {
       const rowNo = index + 2;
-      const site = findSite(state.sites, csvCell(row, "site_code", "site"));
-      const year = findYear(state.years, csvCell(row, "year", "academic_year"));
+      const siteCodeRaw = csvCell(row, "site_code", "site");
+      const yearRaw = csvCell(row, "year", "academic_year");
       const courseName = csvCell(row, "course_name", "course");
       const studentNumber = csvCell(row, "student_number", "student_id", "id");
       const termRaw = csvCell(row, "term", "marking_period", "grading_period", "period");
       
-      if (!site || !year || !courseName || !studentNumber || !termRaw) {
-        result.errors.push({
-          row: rowNo,
-          message: "Need site_code, year, course_name, student_number, and term.",
-        });
+      if (!siteCodeRaw) {
+        result.errors.push({ row: rowNo, message: "Missing site_code." });
+        result.skipped++;
+        return;
+      }
+      if (!yearRaw) {
+        result.errors.push({ row: rowNo, message: "Missing year." });
+        result.skipped++;
+        return;
+      }
+      if (!courseName) {
+        result.errors.push({ row: rowNo, message: "Missing course_name." });
+        result.skipped++;
+        return;
+      }
+      if (!studentNumber) {
+        result.errors.push({ row: rowNo, message: "Missing student_number." });
+        result.skipped++;
+        return;
+      }
+      if (!termRaw) {
+        result.errors.push({ row: rowNo, message: "Missing term." });
+        result.skipped++;
+        return;
+      }
+      
+      const site = findSite(state.sites, siteCodeRaw);
+      if (!site) {
+        result.errors.push({ row: rowNo, message: `site_code: "${siteCodeRaw}" is not a valid school code.` });
+        result.skipped++;
+        return;
+      }
+      
+      const year = findYear(state.years, yearRaw);
+      if (!year) {
+        result.errors.push({ row: rowNo, message: `year: "${yearRaw}" is not a valid academic year.` });
         result.skipped++;
         return;
       }
@@ -1498,9 +1930,12 @@ export async function importGradesCsv(csv: string, lockedSiteId?: string) {
         const mark = scaleMarks.find((m) => m.code.toLowerCase() === markCode.toLowerCase());
         
         if (!mark) {
+          const validMarks = scaleMarks.map((m) => m.code).join(", ");
+          const scale = state.scales.find((s) => s.id === templateItem!.gradeScaleId);
+          const scaleName = scale?.name || "this scale";
           result.errors.push({
             row: rowNo,
-            message: `Mark code "${markCode}" not found in the scale for this item.`,
+            message: `mark_code: "${markCode}" isn't on the ${scaleName}. Valid marks: ${validMarks}.`,
           });
           result.skipped++;
           return;
