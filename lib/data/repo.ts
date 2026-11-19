@@ -74,34 +74,45 @@ export async function getBootstrap() {
     
     const [sitesResult, yearsResult, gradeLevelsResult] = await Promise.all([
       supabase.from("sites").select("*"),
-      supabase.from("academic_years").select("*"),
-      supabase.from("grade_levels").select("*"),
+      supabase.from("academic_years").select("*").order("start_date", { ascending: false }),
+      supabase.from("grade_levels").select("*").order("sort_order", { ascending: true }),
     ]);
     
-    const allSites = (sitesResult.data || []).map((row) => ({
-      id: row.id as string,
-      name: row.name as string,
-      code: row.code as string,
-      address: row.address as string,
-      createdAt: row.created_at as string,
+    if (sitesResult.error) {
+      throw new Error(`Failed to load sites: ${sitesResult.error.message}`);
+    }
+    if (yearsResult.error) {
+      throw new Error(`Failed to load academic years: ${yearsResult.error.message}`);
+    }
+    if (gradeLevelsResult.error) {
+      throw new Error(`Failed to load grade levels: ${gradeLevelsResult.error.message}`);
+    }
+    
+    const allSites: Site[] = sitesResult.data.map((row) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      address: row.address,
+      createdAt: row.created_at,
     }));
     
     const sites = user.isSystemAdmin
       ? allSites
       : allSites.filter((s) => user.memberships.some((m) => m.siteId === s.id));
     
-    const years = (yearsResult.data || []).map((row) => ({
-      id: row.id as string,
-      name: row.name as string,
-      startDate: row.start_date as string,
-      endDate: row.end_date as string,
-      termStructure: row.term_structure as string,
+    const years: AcademicYear[] = yearsResult.data.map((row) => ({
+      id: row.id,
+      name: row.name,
+      startDate: row.start_date,
+      endDate: row.end_date,
     }));
     
-    const gradeLevels = (gradeLevelsResult.data || []).map((row) => ({
-      id: row.id as string,
-      name: row.name as string,
-      sequence: row.sequence as number,
+    const gradeLevels: GradeLevel[] = gradeLevelsResult.data.map((row) => ({
+      id: row.id,
+      code: row.code,
+      nameEn: row.name_en,
+      nameEs: row.name_es,
+      sortOrder: row.sort_order,
     }));
     
     return { user, sites, years, gradeLevels };

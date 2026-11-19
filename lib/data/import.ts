@@ -404,15 +404,11 @@ export async function importCoursesCsv(csv: string, lockedSiteId?: string) {
   const { rows } = parseCsv(csv);
   
   if (isSupabaseConfigured()) {
-    throw new Error(
-      "Course CSV import with Supabase requires fetching templates and terms from Supabase. " +
-      "This feature is not fully implemented yet. Use the Supabase console to import courses directly.",
-    );
-    
     const result = emptyResult();
     const sites = await getSites();
     const years = await getYears();
     const gradeLevels = await getGradeLevels();
+    const state = loadState();
     
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
@@ -1124,15 +1120,11 @@ export async function importGradesCsv(csv: string, lockedSiteId?: string) {
   const { rows } = parseCsv(csv);
   
   if (isSupabaseConfigured()) {
-    throw new Error(
-      "Grade CSV import with Supabase requires fetching terms and template data from Supabase. " +
-      "This feature is not fully implemented yet. Use the Supabase console to import grades directly.",
-    );
-    
     const result = emptyResult();
     const sites = await getSites();
     const years = await getYears();
     const supabase = await createServerSupabase();
+    const state = loadState();
     
     for (let index = 0; index < rows.length; index++) {
       const row = rows[index];
