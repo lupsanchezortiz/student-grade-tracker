@@ -208,14 +208,11 @@ export default function PrivacyPage() {
           </p>
           <p>
             <a
-              href="mailto:hello@studentreportcards.com"
+              href="mailto:lupsanchezortiz@gmail.com"
               className="text-primary hover:underline"
             >
-              hello@studentreportcards.com
+              lupsanchezortiz@gmail.com
             </a>
-          </p>
-          <p className="text-sm text-muted-foreground">
-            (Placeholder contact email – please confirm)
           </p>
 
           <h2>Your Rights</h2>

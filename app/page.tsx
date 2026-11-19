@@ -118,14 +118,11 @@ export default async function HomePage() {
                 <p className="text-sm text-muted-foreground">
                   Questions? Contact us at{" "}
                   <a
-                    href="mailto:hello@studentreportcards.com"
+                    href="mailto:lupsanchezortiz@gmail.com"
                     className="text-primary hover:underline"
                   >
-                    hello@studentreportcards.com
+                    lupsanchezortiz@gmail.com
                   </a>
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  (Placeholder contact email – please confirm)
                 </p>
               </div>
             </div>
