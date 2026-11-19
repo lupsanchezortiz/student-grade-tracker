@@ -67,6 +67,46 @@ const id = () => crypto.randomUUID();
 
 export async function getBootstrap() {
   const user = await requireUser();
+  
+  if (isSupabaseConfigured()) {
+    const { createServerSupabase } = await import("@/lib/supabase/server");
+    const supabase = await createServerSupabase();
+    
+    const [sitesResult, yearsResult, gradeLevelsResult] = await Promise.all([
+      supabase.from("sites").select("*"),
+      supabase.from("academic_years").select("*"),
+      supabase.from("grade_levels").select("*"),
+    ]);
+    
+    const allSites = (sitesResult.data || []).map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+      code: row.code as string,
+      address: row.address as string,
+      createdAt: row.created_at as string,
+    }));
+    
+    const sites = user.isSystemAdmin
+      ? allSites
+      : allSites.filter((s) => user.memberships.some((m) => m.siteId === s.id));
+    
+    const years = (yearsResult.data || []).map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+      startDate: row.start_date as string,
+      endDate: row.end_date as string,
+      termStructure: row.term_structure as string,
+    }));
+    
+    const gradeLevels = (gradeLevelsResult.data || []).map((row) => ({
+      id: row.id as string,
+      name: row.name as string,
+      sequence: row.sequence as number,
+    }));
+    
+    return { user, sites, years, gradeLevels };
+  }
+  
   const state = loadState();
   const sites = user.isSystemAdmin
     ? state.sites
